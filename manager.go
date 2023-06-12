@@ -9,8 +9,9 @@ import (
 )
 
 var (
+	DefaultName = "Default"
 	//StdFactory default connection manager
-	StdFactory = NewFactory("Default")
+	StdFactory = NewFactory(DefaultName)
 	//Get a db from
 	Get = StdFactory.Get
 	//MustGet a db,if db not exists,raise a panic
@@ -139,13 +140,13 @@ func (m *Factory) MustGet(name string) *DB {
 }
 
 // New 创建新的数据库连接，New和SetFunc的不同在：New是立即创建数据库实例，但SetFunc会延迟创建实例
-func (m *Factory) New(name string, fn LoadFunc) error {
+func (m *Factory) New(name string, fn LoadFunc) (*DB, error) {
 	d, err := fn()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	m.Set(name, d)
-	return nil
+	return d, nil
 }
 func (m *Factory) Set(name string, db *DB) {
 	m.lock.Lock()

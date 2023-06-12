@@ -2,6 +2,7 @@ package sqlxx
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"text/template"
 	"time"
@@ -29,6 +30,9 @@ func WhereOr(arg any) string {
 	return WhereWith(arg, " OR ")
 }
 func WhereWith(args any, op string) string {
+	if args == nil {
+		return ""
+	}
 	if op == "" {
 		op = " AND "
 	}
@@ -36,27 +40,40 @@ func WhereWith(args any, op string) string {
 		op = " " + op + " "
 	}
 
-	switch v := args.(type) {
-	case nil:
-		return ""
-	case map[string]any:
-		buf := strings.Builder{}
-		comma := "WHERE "
-		for k, vv := range v {
-			if vv == nil {
+	buf := strings.Builder{}
+	argv := reflect.ValueOf(args)
+	switch argv.Type().Kind() {
+	case reflect.Map:
+		comma := " WHERE "
+		for _, k := range argv.MapKeys() {
+			buf.WriteString(comma)
+			buf.WriteString(SQLName(LowerCase(k.String())))
+			buf.WriteString("=")
+			buf.WriteString(Value(argv.MapIndex(k).Interface()))
+			comma = op
+		}
+	case reflect.Struct:
+		comma := " WHERE "
+		for i := 0; i < argv.NumField(); i++ {
+			if argv.Field(i).IsNil() || argv.Field(i).IsZero() {
 				continue
 			}
 			buf.WriteString(comma)
-			buf.WriteString(k)
-			buf.WriteString("=:")
-			buf.WriteString(k)
+			buf.WriteString(SQLName(LowerCase(argv.Type().Field(i).Name)))
+			buf.WriteString("=")
+			buf.WriteString(Value(argv.Field(i).Interface()))
 			comma = op
 		}
-		return buf.String()
+
 	}
-	return fmt.Sprintf("%v", args)
+	buf.WriteString(" ")
+	return buf.String()
+
 }
-func OrderBy(direction string, args []string) string {
+func OrderBy(direction string, args []any) string {
+	if len(args) == 0 {
+		return ""
+	}
 	sb := strings.Builder{}
 	sb.WriteString("ORDER BY ")
 	splitter := ""
@@ -69,10 +86,10 @@ func OrderBy(direction string, args []string) string {
 	sb.WriteString(direction)
 	return sb.String()
 }
-func Asc(args []string) string {
+func Asc(args []any) string {
 	return OrderBy("ASC", args)
 }
-func Desc(args ...string) string {
+func Desc(args []any) string {
 	return OrderBy("DESC", args)
 }
 
@@ -102,6 +119,14 @@ func Value(arg any) string {
 		ret = a.Format(SQLDate)
 	case *time.Time:
 		ret = a.Format(SQLDate)
+	case bool:
+		if a {
+			ret = "TRUE"
+		} else {
+			ret = "FALSE"
+		}
+	case uint, uint16, uint32, uint64, int, int16, int32, int64, float32, float64:
+		return fmt.Sprintf("%v", a)
 	default:
 		ret = fmt.Sprintf("'%v'", a)
 	}
@@ -139,8 +164,15 @@ func Escape(sql string) string {
 
 	return string(dest)
 }
-func SQLName(name string) string {
-	return "`" + name + "`"
+func SQLName(name any) string {
+	col := ""
+	switch n := name.(type) {
+	case string:
+		col = "`" + n + "`"
+	default:
+		col = fmt.Sprintf("`%v`", n)
+	}
+	return col
 }
 func init() {
 	for i := range EncodeMap {
