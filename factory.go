@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023.
+ * all right reserved by gnodux<gnodux@gmail.com>
+ */
+
 package sqlxx
 
 import (
@@ -18,10 +23,10 @@ var (
 	MustGet = StdFactory.MustGet
 	//Set a db
 	Set = StdFactory.Set
-	//SetFunc set a db with loader func
-	SetFunc = StdFactory.SetFunc
-	//New initialize a db
-	New = StdFactory.New
+	//SetConstructor set a db with constructors func
+	SetConstructor = StdFactory.SetConstructor
+	//CreateAndSet initialize a db
+	CreateAndSet = StdFactory.CreateAndSet
 
 	//Shutdown manager and close all db
 	Shutdown = StdFactory.Shutdown
@@ -39,23 +44,23 @@ var (
 	ParseSQL = StdFactory.ParseSQL
 )
 
-type LoadFunc func() (*DB, error)
+type DBConstructor func() (*DB, error)
 
 type Factory struct {
-	name     string
-	dbs      map[string]*DB
-	loader   map[string]LoadFunc
-	lock     *sync.RWMutex
-	template *template.Template
+	name         string
+	dbs          map[string]*DB
+	constructors map[string]DBConstructor
+	lock         *sync.RWMutex
+	template     *template.Template
 }
 
 func NewFactory(name string) *Factory {
 	return &Factory{
-		name:     name,
-		dbs:      map[string]*DB{},
-		loader:   map[string]LoadFunc{},
-		lock:     &sync.RWMutex{},
-		template: template.New("sql").Funcs(DefaultFuncMap),
+		name:         name,
+		dbs:          map[string]*DB{},
+		constructors: map[string]DBConstructor{},
+		lock:         &sync.RWMutex{},
+		template:     template.New("sql").Funcs(DefaultFuncMap),
 	}
 }
 
@@ -107,10 +112,14 @@ func (m *Factory) Get(name string) (*DB, error) {
 		return c, o
 	}()
 	if !ok {
-		if loader, lok := m.loader[name]; lok {
+		if loader, lok := m.constructors[name]; lok {
 			err := func() error {
 				m.lock.Lock()
-				defer m.lock.Unlock()
+				defer func() {
+					//无论是否成功，都移除loader，避免反复初始化导致异常
+					delete(m.constructors, name)
+					m.lock.Unlock()
+				}()
 				var err error
 				conn, err = loader()
 				conn.SetManager(m)
@@ -139,8 +148,8 @@ func (m *Factory) MustGet(name string) *DB {
 	return d
 }
 
-// New 创建新的数据库连接，New和SetFunc的不同在：New是立即创建数据库实例，但SetFunc会延迟创建实例
-func (m *Factory) New(name string, fn LoadFunc) (*DB, error) {
+// CreateAndSet 创建新的数据库连接并放入工场中
+func (m *Factory) CreateAndSet(name string, fn DBConstructor) (*DB, error) {
 	d, err := fn()
 	if err != nil {
 		return nil, err
@@ -148,16 +157,19 @@ func (m *Factory) New(name string, fn LoadFunc) (*DB, error) {
 	m.Set(name, d)
 	return d, nil
 }
+
 func (m *Factory) Set(name string, db *DB) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	db.m = m
 	m.dbs[name] = db
 }
-func (m *Factory) SetFunc(name string, loadFunc LoadFunc) {
+
+// SetConstructor set a database constructor(Lazy create DB)
+func (m *Factory) SetConstructor(name string, loadFunc DBConstructor) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	m.loader[name] = loadFunc
+	m.constructors[name] = loadFunc
 }
 
 func (m *Factory) Shutdown() error {
@@ -170,4 +182,11 @@ func (m *Factory) Shutdown() error {
 }
 func (m *Factory) String() string {
 	return fmt.Sprintf("db[%s]", m.name)
+}
+
+func Must[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
 }

@@ -6,6 +6,7 @@
 package sqlxx
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
@@ -14,7 +15,9 @@ import (
 )
 
 func TestTemplateFunc(t *testing.T) {
-
+	tpl := template.New("tests").Funcs(DefaultFuncMap)
+	_, err := tpl.ParseFS(os.DirFS("testdata/templates"), "*.sql")
+	assert.NoError(t, err)
 	type args struct {
 		tpl string
 		arg any
@@ -25,11 +28,11 @@ func TestTemplateFunc(t *testing.T) {
 		want string
 	}{
 		{
-			name: "desc function",
+			name: "where desc 1",
 			args: args{
 				tpl: "desc.sql",
 				arg: map[string]any{
-					"cols": []any{
+					"cols": []string{
 						"d", "e", "f",
 					},
 					"where": map[string]any{
@@ -38,11 +41,23 @@ func TestTemplateFunc(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "where desc 2",
+			args: args{tpl: "desc.sql", arg: map[string]any{
+				"cols": []any{"a", "c", 1},
+				"where": struct {
+					Name string
+					Age  int
+					Mop  string
+				}{
+					Name: "xudong",
+					Age:  34,
+				},
+			},
+			},
 		},
 	}
-	tpl := template.New("tests").Funcs(DefaultFuncMap)
-	_, err := tpl.ParseFS(os.DirFS("test_templates"), "*.sql")
-	assert.NoError(t, err)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := &strings.Builder{}
@@ -51,7 +66,7 @@ func TestTemplateFunc(t *testing.T) {
 			if tt.want != "" {
 				assert.Equal(t, tt.want, buf.String())
 			}
-			os.Stdout.WriteString(buf.String())
+			fmt.Println(buf)
 		})
 	}
 }

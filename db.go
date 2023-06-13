@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023.
+ * all right reserved by gnodux<gnodux@gmail.com>
+ */
+
 package sqlxx
 
 import (
@@ -117,6 +122,9 @@ func (d *DB) NamedQueryTpl(tplName string, arg interface{}) (*sqlx.Rows, error) 
 	return d.NamedQuery(query, arg)
 }
 func (d *DB) Batch(ctx context.Context, opts *sql.TxOptions, fn func(tx *Tx) error) (err error) {
+	return d.BatchTpl(ctx, opts, "", fn)
+}
+func (d *DB) BatchTpl(ctx context.Context, opts *sql.TxOptions, tpl string, fn func(tx *Tx) error) (err error) {
 	if d == nil {
 		return ErrNilDB
 	}
@@ -134,12 +142,11 @@ func (d *DB) Batch(ctx context.Context, opts *sql.TxOptions, fn func(tx *Tx) err
 			}
 		}
 	}()
-	if err = fn(NewTx(tx, d.m)); err != nil {
+	if err = fn(NewTx(tx, d.m, tpl)); err != nil {
 		return
 	}
 	return
 }
-
 func Open(driverName, dataSourceName string) (*DB, error) {
 	db, err := sqlx.Open(driverName, dataSourceName)
 	if err != nil {

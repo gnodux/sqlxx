@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023.
+ * all right reserved by gnodux<gnodux@gmail.com>
+ */
+
 package sqlxx
 
 import (
@@ -23,14 +28,15 @@ var (
 	}
 )
 
-func Where(arg any) string {
-	return WhereWith(arg, " AND ")
+func Where(v any) string {
+	return WhereWith(v, " AND ")
 }
-func WhereOr(arg any) string {
-	return WhereWith(arg, " OR ")
+func WhereOr(v any) string {
+	return WhereWith(v, " OR ")
 }
-func WhereWith(args any, op string) string {
-	if args == nil {
+func WhereWith(arg any, op string) string {
+	argv := reflect.ValueOf(arg)
+	if arg == nil {
 		return ""
 	}
 	if op == "" {
@@ -41,8 +47,7 @@ func WhereWith(args any, op string) string {
 	}
 
 	buf := strings.Builder{}
-	argv := reflect.ValueOf(args)
-	switch argv.Type().Kind() {
+	switch reflect.TypeOf(argv.Interface()).Kind() {
 	case reflect.Map:
 		comma := " WHERE "
 		for _, k := range argv.MapKeys() {
@@ -55,7 +60,7 @@ func WhereWith(args any, op string) string {
 	case reflect.Struct:
 		comma := " WHERE "
 		for i := 0; i < argv.NumField(); i++ {
-			if argv.Field(i).IsNil() || argv.Field(i).IsZero() {
+			if argv.Field(i).IsZero() {
 				continue
 			}
 			buf.WriteString(comma)
@@ -70,38 +75,55 @@ func WhereWith(args any, op string) string {
 	return buf.String()
 
 }
-func OrderBy(direction string, args []any) string {
-	if len(args) == 0 {
+func OrderBy(direction string, arg any) string {
+
+	if arg == nil {
 		return ""
 	}
+	argv := reflect.ValueOf(arg)
 	sb := strings.Builder{}
-	sb.WriteString("ORDER BY ")
-	splitter := ""
-	for _, arg := range args {
-		sb.WriteString(splitter)
-		sb.WriteString(SQLName(arg))
-		splitter = ","
+	switch argv.Kind() {
+	case reflect.Slice, reflect.Array:
+		if argv.Len() == 0 {
+			return ""
+		}
+		sb.WriteString("ORDER BY ")
+		splitter := ""
+		for idx := 0; idx < argv.Len(); idx++ {
+			sb.WriteString(splitter)
+			sb.WriteString(SQLName(argv.Index(idx).Interface()))
+			splitter = ","
+		}
 	}
-	sb.WriteString(" ")
-	sb.WriteString(direction)
+	if sb.Len() > 0 {
+		sb.WriteString(" ")
+		sb.WriteString(direction)
+	}
 	return sb.String()
 }
-func Asc(args []any) string {
+func Asc(args any) string {
 	return OrderBy("ASC", args)
 }
-func Desc(args []any) string {
+func Desc(args any) string {
 	return OrderBy("DESC", args)
 }
 
 // Values list of values
-func Values(args []any) string {
+func Values(v any) string {
+	value := reflect.ValueOf(v)
 	comma := ""
 	sb := &strings.Builder{}
-	for _, arg := range args {
-		sb.WriteString(comma)
-		sb.WriteString(Value(arg))
-		comma = ","
+	switch value.Kind() {
+	case reflect.Slice, reflect.Array:
+		for idx := 0; idx < value.Len(); idx++ {
+			sb.WriteString(comma)
+			sb.WriteString(Value(value.Index(idx).Interface()))
+			comma = ","
+		}
+	default:
+		sb.WriteString(Value(value.Interface()))
 	}
+
 	return sb.String()
 }
 

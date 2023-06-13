@@ -1,6 +1,12 @@
+/*
+ * Copyright (c) 2023.
+ * all right reserved by gnodux<gnodux@gmail.com>
+ */
+
 package sqlxx
 
 import (
+	"context"
 	"database/sql"
 	"github.com/cookieY/sqlx"
 )
@@ -12,6 +18,7 @@ type GetFunc[T any] func(args ...any) (T, error)
 type NamedGetFunc[T any] func(arg any) (T, error)
 type ExecFunc func(args ...any) (sql.Result, error)
 type NamedExecFunc func(arg any) (sql.Result, error)
+type TxFunc func(func(*Tx) error) error
 
 func SelectFnWith[T any](m *Factory, db, tpl string) SelectFunc[T] {
 	return func(args ...any) ([]T, error) {
@@ -27,6 +34,16 @@ func SelectFnWith[T any](m *Factory, db, tpl string) SelectFunc[T] {
 
 func SelectFn[T any](db, tpl string) SelectFunc[T] {
 	return SelectFnWith[T](StdFactory, db, tpl)
+}
+
+func TxFnWith(m *Factory, ds, tpl string, opts *sql.TxOptions) TxFunc {
+	return func(fn func(tx *Tx) error) error {
+		if db, err := m.Get(ds); err != nil {
+			return err
+		} else {
+			return db.BatchTpl(context.Background(), opts, tpl, fn)
+		}
+	}
 }
 
 func NamedSelectFnWith[T any](manager *Factory, db, tpl string) NamedSelectFunc[T] {

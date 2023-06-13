@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023.
+ * all right reserved by gnodux<gnodux@gmail.com>
+ */
+
 package sqlxx
 
 import (
@@ -16,10 +21,10 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	SetFunc("default", func() (*DB, error) {
+	SetConstructor("default", func() (*DB, error) {
 		return Open("mysql", "xxtest:xxtest@tcp(localhost)/sqlxx?charset=utf8&parseTime=true&multiStatements=true")
 	})
-	err := ParseTemplateFS(os.DirFS("./queries"), "**/*.sql", "*.sql", "*/*/*.sql")
+	err := ParseTemplateFS(os.DirFS("./testdata"), "examples/*.sql", "initialize/*.sql", "my_mapper/*.sql")
 	if err != nil {
 		panic(err)
 	}
@@ -27,7 +32,6 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 func initData() {
-
 	err := MustGet("default").Batch(context.Background(), &sql.TxOptions{ReadOnly: false, Isolation: sql.LevelReadCommitted}, func(tx *Tx) error {
 		if _, err := tx.ExecTpl("initialize/create_tables.sql"); err != nil {
 			return err
@@ -68,25 +72,19 @@ func initData() {
 		}
 		if count == 0 {
 			//add roles
-			if _, err := tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
 				Name: "admin",
 				Desc: "system administrator",
-			}); err != nil {
-				return err
-			}
+			}))
 
-			if _, err := tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
 				Name: "user",
 				Desc: "normal user",
-			}); err != nil {
-				return err
-			}
-			if _, err := tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			}))
+			Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
 				Name: "customer",
 				Desc: "customer",
-			}); err != nil {
-				return err
-			}
+			}))
 		}
 		return nil
 	})
@@ -118,4 +116,7 @@ func TestNilDB(t *testing.T) {
 	var u []User
 	err := d.SelectTpl(&u, "select_users.sql")
 	fmt.Println(err)
+}
+func TestMustGet(t *testing.T) {
+	Must(Get("default"))
 }

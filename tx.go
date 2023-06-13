@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023.
+ * all right reserved by gnodux<gnodux@gmail.com>
+ */
+
 package sqlxx
 
 import (
@@ -8,7 +13,8 @@ import (
 // Tx transaction wrapper
 type Tx struct {
 	*sqlx.Tx
-	m *Factory
+	m   *Factory
+	tpl string
 }
 
 func (t *Tx) Parse(tplName string, args any) (string, error) {
@@ -34,6 +40,13 @@ func (t *Tx) ExecTpl(tplName string, args ...interface{}) (sql.Result, error) {
 	return t.Exec(query, args...)
 }
 
+func (t *Tx) ExecWith(args ...interface{}) (sql.Result, error) {
+	return t.ExecTpl(t.tpl, args...)
+}
+func (t *Tx) NamedExecWith(arg interface{}) (sql.Result, error) {
+	return t.NamedExecTpl(t.tpl, arg)
+}
+
 func (t *Tx) GetTpl(dest any, tpl string, args ...any) error {
 	query, err := t.Parse(tpl, args)
 	if err != nil {
@@ -43,9 +56,10 @@ func (t *Tx) GetTpl(dest any, tpl string, args ...any) error {
 	return t.Get(dest, query, args...)
 }
 
-func NewTx(tx *sqlx.Tx, m *Factory) *Tx {
+func NewTx(tx *sqlx.Tx, m *Factory, tpl string) *Tx {
 	return &Tx{
-		Tx: tx,
-		m:  m,
+		Tx:  tx,
+		m:   m,
+		tpl: tpl,
 	}
 }

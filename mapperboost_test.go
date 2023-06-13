@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023.
+ * all right reserved by gnodux<gnodux@gmail.com>
+ */
+
 package sqlxx
 
 import (
@@ -20,6 +25,7 @@ type MyMapper struct {
 	GetUserCount   GetFunc[int]          `sql:"examples/count_user.sql"`
 	AddBy          ExecFunc              `sql:"examples/insert_users.sql"`
 	Add            NamedExecFunc         `sql:"examples/insert_users.sql"`
+	BatchAddUser   TxFunc                `sql:"examples/insert_users.sql"`
 }
 
 func TestMapper(t *testing.T) {
@@ -86,6 +92,14 @@ func TestMapper(t *testing.T) {
 						12, 18,
 					},
 				})
+			},
+		}, {
+			Name: "add user",
+			fn: func() (any, error) {
+				err := d1.BatchAddUser(func(tx *Tx) error {
+					return nil
+				})
+				return nil, err
 			},
 		},
 	}
