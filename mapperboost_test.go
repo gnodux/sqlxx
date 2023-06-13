@@ -7,6 +7,7 @@ package sqlxx
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
@@ -120,17 +121,17 @@ func TestMapper(t *testing.T) {
 
 func TestParseTemplate(t *testing.T) {
 	tpl := template.New("sql").Funcs(DefaultFuncMap)
-	_, err := tpl.ParseFS(os.DirFS("./queries/"), "**/*.sql")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-	tpl.New("test/job").Parse("{{.Name}}:{{.Cat}}({{list tags}})")
+	_, err := tpl.ParseFS(os.DirFS("./testdata/"), "**/*.sql")
+	assert.NoError(t, err)
+	_, err = tpl.New("test/job").Parse("{{.Name}}:{{.Cat}}({{list .tags}})")
+	assert.NoError(t, err)
 	for _, tp := range tpl.Templates() {
 		t.Log(tp.Name())
 	}
 
-	t.Log(tpl.ExecuteTemplate(os.Stdout, "get_user_by_id_name.sql", map[string]any{
+	err = tpl.ExecuteTemplate(os.Stdout, "get_user_by_id_name.sql", map[string]any{
 		"id": 1000,
-	}))
+	})
+	fmt.Println()
+	assert.NoError(t, err)
 }

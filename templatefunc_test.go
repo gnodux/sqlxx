@@ -55,6 +55,11 @@ func TestTemplateFunc(t *testing.T) {
 				},
 			},
 			},
+		}, {
+			name: "in test",
+			args: args{tpl: "in.sql", arg: map[string]any{
+				"roles": []any{"admin", "user", "custom"},
+			}},
 		},
 	}
 
