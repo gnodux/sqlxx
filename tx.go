@@ -56,10 +56,13 @@ func (t *Tx) GetTpl(dest any, tpl string, args ...any) error {
 	return t.Get(dest, query, args...)
 }
 
-func NewTx(tx *sqlx.Tx, m *Factory, tpl string) *Tx {
+func NewTxWith(tx *sqlx.Tx, m *Factory, tpl string) *Tx {
 	return &Tx{
 		Tx:  tx,
 		m:   m,
 		tpl: tpl,
 	}
+}
+func NewTx(tx *sqlx.Tx, m *Factory) *Tx {
+	return NewTxWith(tx, m, "")
 }

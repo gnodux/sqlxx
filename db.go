@@ -142,7 +142,7 @@ func (d *DB) BatchTpl(ctx context.Context, opts *sql.TxOptions, tpl string, fn f
 			}
 		}
 	}()
-	if err = fn(NewTx(tx, d.m, tpl)); err != nil {
+	if err = fn(NewTxWith(tx, d.m, tpl)); err != nil {
 		return
 	}
 	return
