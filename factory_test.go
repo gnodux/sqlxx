@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/sirupsen/logrus"
 	"os"
 	"testing"
 	"time"
@@ -21,7 +22,8 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	SetConstructor("default", func() (*DB, error) {
+	logrus.SetLevel(logrus.TraceLevel)
+	SetConstructor(DefaultName, func() (*DB, error) {
 		return Open("mysql", "xxtest:xxtest@tcp(localhost)/sqlxx?charset=utf8&parseTime=true&multiStatements=true")
 	})
 	err := ParseTemplateFS(os.DirFS("./testdata"), "examples/*.sql", "initialize/*.sql", "my_mapper/*.sql")
@@ -32,7 +34,7 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 func initData() {
-	err := MustGet("default").Batch(context.Background(), &sql.TxOptions{ReadOnly: false, Isolation: sql.LevelReadCommitted}, func(tx *Tx) error {
+	err := MustGet(DefaultName).Batch(context.Background(), &sql.TxOptions{ReadOnly: false, Isolation: sql.LevelReadCommitted}, func(tx *Tx) error {
 		if _, err := tx.ExecTpl("initialize/create_tables.sql"); err != nil {
 			return err
 		}
@@ -93,7 +95,7 @@ func initData() {
 	}
 }
 func TestSelectUsers(t *testing.T) {
-	fn := SelectFn[User]("default", "examples/select_users.sql")
+	fn := SelectFn[User](DefaultName, "examples/select_users.sql")
 	users, err := fn()
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +103,7 @@ func TestSelectUsers(t *testing.T) {
 	fmt.Println(users)
 }
 func TestSelectUserLikeName(t *testing.T) {
-	fn := NamedSelectFn[User]("default", "examples/select_user_where.sql")
+	fn := NamedSelectFn[User](DefaultName, "examples/select_user_where.sql")
 	users, err := fn(User{
 		Name: "user_6",
 	})
@@ -118,5 +120,5 @@ func TestNilDB(t *testing.T) {
 	fmt.Println(err)
 }
 func TestMustGet(t *testing.T) {
-	Must(Get("default"))
+	Must(Get(DefaultName))
 }

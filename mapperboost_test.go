@@ -30,7 +30,7 @@ type MyMapper struct {
 }
 
 func TestMapper(t *testing.T) {
-	d1, err := NewMapper[MyMapper]("default")
+	d1, err := NewMapper[MyMapper](DefaultName)
 	assert.NoError(t, err, "create a mapper")
 	tests := []struct {
 		Name    string

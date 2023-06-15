@@ -47,6 +47,21 @@ func (d *DB) PrepareTpl(tplName string, args any) (*sqlx.Stmt, error) {
 	}
 	return d.Preparex(query)
 }
+
+func (d *DB) RunPrepared(tplName string, arg any, fn func(*sqlx.Stmt) error) (err error) {
+	var stmt *sqlx.Stmt
+	if stmt, err = d.PrepareTpl(tplName, arg); err != nil {
+		return
+	}
+	defer func() {
+		stErr := stmt.Close()
+		if stErr != nil {
+			err = stErr
+		}
+	}()
+	return fn(stmt)
+}
+
 func (d *DB) PrepareTplNamed(tplName string, args any) (*sqlx.NamedStmt, error) {
 	if d == nil {
 		return nil, ErrNilDB
@@ -56,6 +71,19 @@ func (d *DB) PrepareTplNamed(tplName string, args any) (*sqlx.NamedStmt, error) 
 		return nil, err
 	}
 	return d.PrepareNamed(query)
+}
+func (d *DB) RunPrepareNamed(tplName string, arg any, fn func(*sqlx.NamedStmt) error) (err error) {
+	var stmt *sqlx.NamedStmt
+	if stmt, err = d.PrepareTplNamed(tplName, arg); err != nil {
+		return
+	}
+	defer func() {
+		stErr := stmt.Close()
+		if stErr != nil {
+			err = stErr
+		}
+	}()
+	return fn(stmt)
 }
 func (d *DB) SelectTpl(dest interface{}, tplName string, args ...any) error {
 	if d == nil {

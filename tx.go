@@ -23,6 +23,54 @@ func (t *Tx) Parse(tplName string, args any) (string, error) {
 	}
 	return t.m.ParseSQL(tplName, args)
 }
+func (t *Tx) ParseAndPrepareNamed(tplName string, arg any) (*sqlx.NamedStmt, error) {
+	query, err := t.Parse(tplName, arg)
+	if err != nil {
+		return nil, err
+	}
+	return t.PrepareNamed(query)
+}
+func (t *Tx) RunPrepareNamed(tplName string, arg any, fn func(*sqlx.NamedStmt) error) (err error) {
+	var stmt *sqlx.NamedStmt
+	if stmt, err = t.ParseAndPrepareNamed(tplName, arg); err != nil {
+		return
+	}
+	defer func() {
+		stErr := stmt.Close()
+		if stErr != nil {
+			err = stErr
+		}
+	}()
+	return fn(stmt)
+}
+func (t *Tx) ParseAndPrepare(tplName string, arg any) (*sqlx.Stmt, error) {
+	query, err := t.Parse(tplName, arg)
+	if err != nil {
+		return nil, err
+	}
+	return t.Preparex(query)
+}
+func (t *Tx) RunPrepared(tplName string, arg any, fn func(*sqlx.Stmt) error) (err error) {
+	var stmt *sqlx.Stmt
+	if stmt, err = t.ParseAndPrepare(tplName, arg); err != nil {
+		return
+	}
+	defer func() {
+		stErr := stmt.Close()
+		if stErr != nil {
+			err = stErr
+		}
+	}()
+	return fn(stmt)
+}
+func (t *Tx) PrepareNamed(query string) (*sqlx.NamedStmt, error) {
+	log.Debug("prepare named query:", query)
+	return t.Tx.PrepareNamed(query)
+}
+func (t *Tx) Preparex(query string) (*sqlx.Stmt, error) {
+	log.Debug("prepare query:", query)
+	return t.Tx.Preparex(query)
+}
 func (t *Tx) NamedExecTpl(tplName string, arg interface{}) (sql.Result, error) {
 	query, err := t.Parse(tplName, arg)
 	if err != nil {

@@ -7,6 +7,7 @@ package sqlxx
 
 import (
 	"fmt"
+	"github.com/gnodux/sqlxx/builtinsql"
 	"io/fs"
 	"strings"
 	"sync"
@@ -55,13 +56,18 @@ type Factory struct {
 }
 
 func NewFactory(name string) *Factory {
-	return &Factory{
+	f := &Factory{
 		name:         name,
 		dbs:          map[string]*DB{},
 		constructors: map[string]DBConstructor{},
 		lock:         &sync.RWMutex{},
 		template:     template.New("sql").Funcs(DefaultFuncMap),
 	}
+	err := f.ParseTemplateFS(builtinsql.Builtin, "**/*.sql")
+	if err != nil {
+		panic(err)
+	}
+	return f
 }
 
 func (m *Factory) SetTemplate(tpl *template.Template) {
@@ -87,6 +93,7 @@ func (m *Factory) ParseTemplateFS(f fs.FS, patterns ...string) error {
 			if err != nil {
 				return err
 			}
+			log.Info("parse sql:", mf)
 			if _, err = m.template.New(strings.ReplaceAll(mf, "\\", "/")).Parse(string(buf)); err != nil {
 				return err
 			}

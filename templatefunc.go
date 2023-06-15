@@ -20,21 +20,119 @@ const (
 var (
 	DefaultFuncMap = template.FuncMap{
 		"where": Where,
-		"asc":   Asc,
-		"desc":  Desc,
-		"v":     Value,
-		"n":     SQLName,
-		"list":  Values,
+		"namedWhere": func(v any) string {
+			return WhereWith(v, " AND ", true)
+		},
+		"asc":        Asc,
+		"desc":       Desc,
+		"v":          Value,
+		"n":          SQLName,
+		"list":       Values,
+		"columns":    columns,
+		"allColumns": allColumns,
+		"args":       args,
+		"setArgs":    sets,
+		//"tableName":    tableName,
+		//"hasTenantKey": hasTenantKey,
+		//"tenantKey":    tenantKey,
 	}
 )
 
+func listValueColumns(v any) []*ColumnDef {
+	argv := reflect.TypeOf(v)
+	return listColumns(argv)
+
+}
+func listColumns(t reflect.Type) []*ColumnDef {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	var fields []*ColumnDef
+	for i := 0; i < t.NumField(); i++ {
+		if t.Field(i).IsExported() {
+			fields = append(fields, NewColumnDefWith(t.Field(i)))
+		}
+	}
+	return fields
+}
+
+func columns(cols []*ColumnDef) string {
+	sb := strings.Builder{}
+	pre := ""
+	for _, c := range cols {
+		if c.Ignore || c.IsPrimaryKey {
+			continue
+		}
+		sb.WriteString(pre)
+		sb.WriteString(SQLName(c.ColumnName))
+		pre = ","
+	}
+	return sb.String()
+}
+func allColumns(cols []*ColumnDef) string {
+	sb := strings.Builder{}
+	pre := ""
+	for _, c := range cols {
+		sb.WriteString(pre)
+		sb.WriteString(SQLName(c.ColumnName))
+		pre = ","
+	}
+	return sb.String()
+}
+
+func args(cols []*ColumnDef) string {
+	sb := strings.Builder{}
+	pre := ""
+	for _, c := range cols {
+		if c.Ignore || c.IsPrimaryKey {
+			continue
+		}
+		sb.WriteString(pre)
+		sb.WriteString(":")
+		sb.WriteString(c.ColumnName)
+		pre = ","
+	}
+	return sb.String()
+}
+
+func sets(cols []*ColumnDef) string {
+	sb := &strings.Builder{}
+	pre := ""
+	for _, c := range cols {
+		if c.Ignore || c.IsPrimaryKey {
+			continue
+		}
+		sb.WriteString(pre)
+		sb.WriteString(SQLName(c.ColumnName))
+		sb.WriteString("=:")
+		sb.WriteString(c.ColumnName)
+		pre = ","
+	}
+	return sb.String()
+}
+func hasTenantKey(cols []*ColumnDef) bool {
+	for _, c := range cols {
+		if c.IsTenantKey {
+			return true
+		}
+	}
+	return false
+}
+func tenantKey(cols []*ColumnDef) string {
+	for _, c := range cols {
+		if c.IsTenantKey {
+			return c.ColumnName
+		}
+	}
+	return ""
+}
 func Where(v any) string {
-	return WhereWith(v, " AND ")
+	return WhereWith(v, " AND ", false)
 }
 func WhereOr(v any) string {
-	return WhereWith(v, " OR ")
+	return WhereWith(v, " OR ", false)
 }
-func WhereWith(arg any, op string) string {
+func WhereWith(arg any, op string, named bool) string {
 	argv := reflect.ValueOf(arg)
 	if arg == nil {
 		return ""
@@ -53,8 +151,22 @@ func WhereWith(arg any, op string) string {
 		for _, k := range argv.MapKeys() {
 			buf.WriteString(comma)
 			buf.WriteString(SQLName(LowerCase(k.String())))
-			buf.WriteString("=")
-			buf.WriteString(Value(argv.MapIndex(k).Interface()))
+			value := argv.MapIndex(k)
+			switch reflect.TypeOf(value.Interface()).Kind() {
+			case reflect.String:
+				if strings.ContainsAny(value.Interface().(string), "%.?") {
+					buf.WriteString(" LIKE ")
+				} else {
+					buf.WriteString("=")
+				}
+			default:
+				buf.WriteString("=")
+			}
+			if named {
+				buf.WriteString(fmt.Sprintf(":%s", k.String()))
+			} else {
+				buf.WriteString(Value(value.Interface()))
+			}
 			comma = op
 		}
 	case reflect.Struct:
@@ -123,7 +235,6 @@ func Values(v any) string {
 	default:
 		sb.WriteString(Value(value.Interface()))
 	}
-
 	return sb.String()
 }
 

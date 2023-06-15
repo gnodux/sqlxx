@@ -8,7 +8,6 @@ package sqlxx
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -76,8 +75,13 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 	v = v.Elem()
 	for idx := 0; idx < v.Type().NumField(); idx++ {
 		field := v.Type().Field(idx)
+		if field.IsExported() && field.Type.Kind() == reflect.Struct {
+			if err := BoostMapper(v.Field(idx).Addr().Interface(), m, ds); err != nil {
+				return err
+			}
+			continue
+		}
 		fieldDs, sqlTpl, isoLevel, readonly := GetTags(field)
-		fmt.Println(isoLevel)
 		if fieldDs == "" {
 			fieldDs = ds
 		}
@@ -183,11 +187,11 @@ func valueOrZero(v any, typ reflect.Type) reflect.Value {
 func Boost(dest interface{}, ds string) error {
 	return BoostMapper(dest, StdFactory, ds)
 }
-func NewMapperWith[T any](m *Factory, dbName string) (T, error) {
+func NewMapperWith[T any](m *Factory, dbName string) (*T, error) {
 	var d T
 	err := BoostMapper(&d, m, dbName)
-	return d, err
+	return &d, err
 }
-func NewMapper[T any](ds string) (T, error) {
+func NewMapper[T any](ds string) (*T, error) {
 	return NewMapperWith[T](StdFactory, ds)
 }

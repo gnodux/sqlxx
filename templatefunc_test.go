@@ -60,6 +60,15 @@ func TestTemplateFunc(t *testing.T) {
 			args: args{tpl: "in.sql", arg: map[string]any{
 				"roles": []any{"admin", "user", "custom"},
 			}},
+		}, {
+			name: "range test",
+			args: args{
+				tpl: "range.sql",
+				arg: map[string]string{
+					"tenantId": "10010011",
+					"name":     "x",
+				},
+			},
 		},
 	}
 
