@@ -35,9 +35,15 @@ type EntityMeta struct {
 	PrimaryKey *ColumnDef
 	TenantKey  *ColumnDef
 }
+
+func (m *EntityMeta) String() string {
+	return m.TableName
+}
+
 type ColumnDef struct {
 	Name         string
 	ColumnName   string
+	Type         reflect.Type
 	IsPrimaryKey bool
 	IsTenantKey  bool
 	Ignore       bool
@@ -84,6 +90,7 @@ func NewColumnDefWith(f reflect.StructField) *ColumnDef {
 	if strings.ToLower(f.Name) == "id" {
 		col.IsPrimaryKey = true
 	}
+	col.Type = f.Type
 	return col
 }
 
@@ -221,11 +228,11 @@ func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy []string, desc bo
 	b.init()
 	argm := map[string]any{
 		"Meta":    b.meta,
-		"Where":   where,
-		"OrderBy": orderBy,
+		"where":   where,
+		"orderBy": orderBy,
 		"Limit":   limit,
 		"Offset":  offset,
-		"Desc":    desc,
+		"desc":    desc,
 	}
 	err = b.RunPrepareNamed("builtin/select_by.sql", argm, func(stmt *sqlx.NamedStmt) error {
 		argd := map[string]any{}
@@ -257,12 +264,7 @@ func setPrimaryKey(entity any, meta *EntityMeta, result sql.Result) error {
 				ev = ev.Elem()
 			}
 		}
-		pkf := ev.FieldByNameFunc(func(s string) bool {
-			if s == meta.PrimaryKey.Name {
-				return true
-			}
-			return false
-		})
+		pkf := ev.FieldByName(meta.PrimaryKey.Name)
 		if pkf.IsValid() {
 			pkf.SetInt(id)
 		}

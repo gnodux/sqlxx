@@ -15,9 +15,7 @@ import (
 )
 
 func TestTemplateFunc(t *testing.T) {
-	tpl := template.New("tests").Funcs(DefaultFuncMap)
-	_, err := tpl.ParseFS(os.DirFS("testdata/templates"), "*.sql")
-	assert.NoError(t, err)
+
 	type args struct {
 		tpl string
 		arg any
@@ -69,8 +67,20 @@ func TestTemplateFunc(t *testing.T) {
 					"name":     "x",
 				},
 			},
+		}, {
+			name: "var define test",
+			args: args{
+				tpl: "vardefine.sql",
+				arg: map[string]any{
+					"tenantId": "10010011",
+					"name":     "x",
+				},
+			},
 		},
 	}
+	tpl := template.New("tests").Funcs(DefaultFuncMap)
+	_, err := tpl.ParseFS(os.DirFS("testdata/templates"), "*.sql")
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -75,15 +75,15 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 	v = v.Elem()
 	for idx := 0; idx < v.Type().NumField(); idx++ {
 		field := v.Type().Field(idx)
-		if field.IsExported() && field.Type.Kind() == reflect.Struct {
-			if err := BoostMapper(v.Field(idx).Addr().Interface(), m, ds); err != nil {
-				return err
-			}
-			continue
-		}
 		fieldDs, sqlTpl, isoLevel, readonly := GetTags(field)
 		if fieldDs == "" {
 			fieldDs = ds
+		}
+		if field.IsExported() && field.Type.Kind() == reflect.Struct {
+			if err := BoostMapper(v.Field(idx).Addr().Interface(), m, fieldDs); err != nil {
+				return err
+			}
+			continue
 		}
 		switch field.Type.Kind() {
 		case reflect.Ptr:
@@ -187,11 +187,11 @@ func valueOrZero(v any, typ reflect.Type) reflect.Value {
 func Boost(dest interface{}, ds string) error {
 	return BoostMapper(dest, StdFactory, ds)
 }
-func NewMapperWith[T any](m *Factory, dbName string) (*T, error) {
+func NewMapperWith[T any](factory *Factory, dataSource string) (*T, error) {
 	var d T
-	err := BoostMapper(&d, m, dbName)
+	err := BoostMapper(&d, factory, dataSource)
 	return &d, err
 }
-func NewMapper[T any](ds string) (*T, error) {
-	return NewMapperWith[T](StdFactory, ds)
+func NewMapper[T any](dataSource string) (*T, error) {
+	return NewMapperWith[T](StdFactory, dataSource)
 }

@@ -14,29 +14,39 @@ import (
 )
 
 const (
-	SQLDate = "'2006-01-02 15:04:05'"
+	sqlDate = "'2006-01-02 15:04:05'"
 )
 
 var (
 	DefaultFuncMap = template.FuncMap{
-		"where": Where,
+		"where": where,
 		"namedWhere": func(v any) string {
-			return WhereWith(v, " AND ", true)
+			return whereWith(v, " AND ", true)
 		},
-		"asc":        Asc,
-		"desc":       Desc,
-		"v":          Value,
-		"n":          SQLName,
-		"list":       Values,
+		"asc":        asc,
+		"desc":       desc,
+		"v":          sqlValue,
+		"n":          sqlName,
+		"list":       sqlValues,
 		"columns":    columns,
 		"allColumns": allColumns,
 		"args":       args,
 		"setArgs":    sets,
+		"set":        setValue,
 		//"tableName":    tableName,
 		//"hasTenantKey": hasTenantKey,
 		//"tenantKey":    tenantKey,
 	}
 )
+
+func setValue(v any, newV any) any {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	rv.Set(reflect.ValueOf(newV))
+	return nil
+}
 
 func listValueColumns(v any) []*ColumnDef {
 	argv := reflect.TypeOf(v)
@@ -64,7 +74,7 @@ func columns(cols []*ColumnDef) string {
 			continue
 		}
 		sb.WriteString(pre)
-		sb.WriteString(SQLName(c.ColumnName))
+		sb.WriteString(sqlName(c.ColumnName))
 		pre = ","
 	}
 	return sb.String()
@@ -74,7 +84,7 @@ func allColumns(cols []*ColumnDef) string {
 	pre := ""
 	for _, c := range cols {
 		sb.WriteString(pre)
-		sb.WriteString(SQLName(c.ColumnName))
+		sb.WriteString(sqlName(c.ColumnName))
 		pre = ","
 	}
 	return sb.String()
@@ -103,7 +113,7 @@ func sets(cols []*ColumnDef) string {
 			continue
 		}
 		sb.WriteString(pre)
-		sb.WriteString(SQLName(c.ColumnName))
+		sb.WriteString(sqlName(c.ColumnName))
 		sb.WriteString("=:")
 		sb.WriteString(c.ColumnName)
 		pre = ","
@@ -126,13 +136,13 @@ func tenantKey(cols []*ColumnDef) string {
 	}
 	return ""
 }
-func Where(v any) string {
-	return WhereWith(v, " AND ", false)
+func where(v any) string {
+	return whereWith(v, " AND ", false)
 }
-func WhereOr(v any) string {
-	return WhereWith(v, " OR ", false)
+func whereOr(v any) string {
+	return whereWith(v, " OR ", false)
 }
-func WhereWith(arg any, op string, named bool) string {
+func whereWith(arg any, op string, named bool) string {
 	argv := reflect.ValueOf(arg)
 	if arg == nil {
 		return ""
@@ -150,7 +160,7 @@ func WhereWith(arg any, op string, named bool) string {
 		comma := " WHERE "
 		for _, k := range argv.MapKeys() {
 			buf.WriteString(comma)
-			buf.WriteString(SQLName(LowerCase(k.String())))
+			buf.WriteString(sqlName(LowerCase(k.String())))
 			value := argv.MapIndex(k)
 			switch reflect.TypeOf(value.Interface()).Kind() {
 			case reflect.String:
@@ -165,7 +175,7 @@ func WhereWith(arg any, op string, named bool) string {
 			if named {
 				buf.WriteString(fmt.Sprintf(":%s", k.String()))
 			} else {
-				buf.WriteString(Value(value.Interface()))
+				buf.WriteString(sqlValue(value.Interface()))
 			}
 			comma = op
 		}
@@ -176,9 +186,9 @@ func WhereWith(arg any, op string, named bool) string {
 				continue
 			}
 			buf.WriteString(comma)
-			buf.WriteString(SQLName(LowerCase(argv.Type().Field(i).Name)))
+			buf.WriteString(sqlName(LowerCase(argv.Type().Field(i).Name)))
 			buf.WriteString("=")
-			buf.WriteString(Value(argv.Field(i).Interface()))
+			buf.WriteString(sqlValue(argv.Field(i).Interface()))
 			comma = op
 		}
 
@@ -187,7 +197,7 @@ func WhereWith(arg any, op string, named bool) string {
 	return buf.String()
 
 }
-func OrderBy(direction string, arg any) string {
+func orderBy(direction string, arg any) string {
 
 	if arg == nil {
 		return ""
@@ -203,7 +213,7 @@ func OrderBy(direction string, arg any) string {
 		splitter := ""
 		for idx := 0; idx < argv.Len(); idx++ {
 			sb.WriteString(splitter)
-			sb.WriteString(SQLName(argv.Index(idx).Interface()))
+			sb.WriteString(sqlName(argv.Index(idx).Interface()))
 			splitter = ","
 		}
 	}
@@ -213,15 +223,15 @@ func OrderBy(direction string, arg any) string {
 	}
 	return sb.String()
 }
-func Asc(args any) string {
-	return OrderBy("ASC", args)
+func asc(args any) string {
+	return orderBy("ASC", args)
 }
-func Desc(args any) string {
-	return OrderBy("DESC", args)
+func desc(args any) string {
+	return orderBy("DESC", args)
 }
 
-// Values list of values
-func Values(v any) string {
+// sqlValues list of sqlValues
+func sqlValues(v any) string {
 	value := reflect.ValueOf(v)
 	comma := ""
 	sb := &strings.Builder{}
@@ -229,29 +239,29 @@ func Values(v any) string {
 	case reflect.Slice, reflect.Array:
 		for idx := 0; idx < value.Len(); idx++ {
 			sb.WriteString(comma)
-			sb.WriteString(Value(value.Index(idx).Interface()))
+			sb.WriteString(sqlValue(value.Index(idx).Interface()))
 			comma = ","
 		}
 	default:
-		sb.WriteString(Value(value.Interface()))
+		sb.WriteString(sqlValue(value.Interface()))
 	}
 	return sb.String()
 }
 
-// Value sql value converter(sql inject process)
-func Value(arg any) string {
+// value sql value converter(sql inject process)
+func sqlValue(arg any) string {
 	var ret string
 	switch a := arg.(type) {
 	case nil:
 		ret = "NULL"
 	case string:
-		ret = "'" + Escape(a) + "'"
+		ret = "'" + escape(a) + "'"
 	case *string:
-		ret = "'" + Escape(*a) + "'"
+		ret = "'" + escape(*a) + "'"
 	case time.Time:
-		ret = a.Format(SQLDate)
+		ret = a.Format(sqlDate)
 	case *time.Time:
-		ret = a.Format(SQLDate)
+		ret = a.Format(sqlDate)
 	case bool:
 		if a {
 			ret = "TRUE"
@@ -283,8 +293,8 @@ var (
 	DONTESCAPE byte = 255
 )
 
-// Escape only support utf-8
-func Escape(sql string) string {
+// escape only support utf-8
+func escape(sql string) string {
 	dest := make([]byte, 0, 2*len(sql))
 
 	for _, w := range []byte(sql) {
@@ -297,7 +307,7 @@ func Escape(sql string) string {
 
 	return string(dest)
 }
-func SQLName(name any) string {
+func sqlName(name any) string {
 	col := ""
 	switch n := name.(type) {
 	case string:

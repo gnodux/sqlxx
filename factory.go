@@ -155,7 +155,7 @@ func (m *Factory) MustGet(name string) *DB {
 	return d
 }
 
-// CreateAndSet 创建新的数据库连接并放入工场中
+// CreateAndSet 创建新的数据库连接并放入管理器中
 func (m *Factory) CreateAndSet(name string, fn DBConstructor) (*DB, error) {
 	d, err := fn()
 	if err != nil {
@@ -179,6 +179,9 @@ func (m *Factory) SetConstructor(name string, loadFunc DBConstructor) {
 	m.constructors[name] = loadFunc
 }
 
+func (m *Factory) BoostMapper(dest any, dataSource string) error {
+	return BoostMapper(dest, m, dataSource)
+}
 func (m *Factory) Shutdown() error {
 	for _, v := range m.dbs {
 		if err := v.Close(); err != nil {
