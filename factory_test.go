@@ -23,6 +23,7 @@ var (
 
 func TestMain(m *testing.M) {
 	logrus.SetLevel(logrus.TraceLevel)
+	encoder.SetIndent("", "  ")
 	SetConstructor(DefaultName, func() (*DB, error) {
 		return Open("mysql", "xxtest:xxtest@tcp(localhost)/sqlxx?charset=utf8&parseTime=true&multiStatements=true")
 	})

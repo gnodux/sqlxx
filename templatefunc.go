@@ -19,10 +19,9 @@ const (
 
 var (
 	DefaultFuncMap = template.FuncMap{
-		"where": where,
-		"namedWhere": func(v any) string {
-			return whereWith(v, " AND ", true)
-		},
+		"where":      where,
+		"namedWhere": namedWhere,
+		"nwhere":     namedWhere,
 		"asc":        asc,
 		"desc":       desc,
 		"v":          sqlValue,
@@ -39,6 +38,9 @@ var (
 	}
 )
 
+func namedWhere(v any) string {
+	return whereWith(v, " AND ", true)
+}
 func setValue(v any, newV any) any {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Ptr {
@@ -48,25 +50,7 @@ func setValue(v any, newV any) any {
 	return nil
 }
 
-func listValueColumns(v any) []*ColumnDef {
-	argv := reflect.TypeOf(v)
-	return listColumns(argv)
-
-}
-func listColumns(t reflect.Type) []*ColumnDef {
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	var fields []*ColumnDef
-	for i := 0; i < t.NumField(); i++ {
-		if t.Field(i).IsExported() {
-			fields = append(fields, NewColumnDefWith(t.Field(i)))
-		}
-	}
-	return fields
-}
-
-func columns(cols []*ColumnDef) string {
+func columns(cols []*ColumnMeta) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -79,7 +63,7 @@ func columns(cols []*ColumnDef) string {
 	}
 	return sb.String()
 }
-func allColumns(cols []*ColumnDef) string {
+func allColumns(cols []*ColumnMeta) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -90,7 +74,7 @@ func allColumns(cols []*ColumnDef) string {
 	return sb.String()
 }
 
-func args(cols []*ColumnDef) string {
+func args(cols []*ColumnMeta) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -105,7 +89,7 @@ func args(cols []*ColumnDef) string {
 	return sb.String()
 }
 
-func sets(cols []*ColumnDef) string {
+func sets(cols []*ColumnMeta) string {
 	sb := &strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -120,7 +104,7 @@ func sets(cols []*ColumnDef) string {
 	}
 	return sb.String()
 }
-func hasTenantKey(cols []*ColumnDef) bool {
+func hasTenantKey(cols []*ColumnMeta) bool {
 	for _, c := range cols {
 		if c.IsTenantKey {
 			return true
@@ -128,7 +112,7 @@ func hasTenantKey(cols []*ColumnDef) bool {
 	}
 	return false
 }
-func tenantKey(cols []*ColumnDef) string {
+func tenantKey(cols []*ColumnMeta) string {
 	for _, c := range cols {
 		if c.IsTenantKey {
 			return c.ColumnName

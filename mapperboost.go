@@ -36,7 +36,7 @@ var (
 	TxFuncType        = reflect.TypeOf(TxFunc(nil))
 )
 
-func GetTags(field reflect.StructField) (ds, tpl string, level sql.IsolationLevel, readOnly bool) {
+func getTags(field reflect.StructField) (ds, tpl string, level sql.IsolationLevel, readOnly bool) {
 	ds = field.Tag.Get(TagDS)
 	tpl = field.Tag.Get(TagSQL)
 	txtLevel := field.Tag.Get(TagTx)
@@ -75,7 +75,7 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 	v = v.Elem()
 	for idx := 0; idx < v.Type().NumField(); idx++ {
 		field := v.Type().Field(idx)
-		fieldDs, sqlTpl, isoLevel, readonly := GetTags(field)
+		fieldDs, sqlTpl, isoLevel, readonly := getTags(field)
 		if fieldDs == "" {
 			fieldDs = ds
 		}

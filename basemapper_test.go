@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -174,4 +175,25 @@ func TestBaseMapper_Duck(t *testing.T) {
 	}, []string{"role"}, true, 100, 0)
 	assert.NoError(t, err)
 	encoder.Encode(users)
+}
+
+type Std struct {
+	CreateTime time.Time
+	CreateBy   int64
+	ModifyTime time.Time
+	ModifyBy   int64
+	IsDeleted  bool
+}
+
+type MyUser struct {
+	UserName string
+	Password string
+	Std
+	Transaction
+}
+
+func Test_listColumns(t *testing.T) {
+	my := MyUser{}
+	cols := listColumns(reflect.TypeOf(my))
+	encoder.Encode(cols)
 }

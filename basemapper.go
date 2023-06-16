@@ -30,17 +30,17 @@ type NamedEntity interface {
 }
 
 type EntityMeta struct {
-	Columns    []*ColumnDef
+	Columns    []*ColumnMeta
 	TableName  string
-	PrimaryKey *ColumnDef
-	TenantKey  *ColumnDef
+	PrimaryKey *ColumnMeta
+	TenantKey  *ColumnMeta
 }
 
 func (m *EntityMeta) String() string {
 	return m.TableName
 }
 
-type ColumnDef struct {
+type ColumnMeta struct {
 	Name         string
 	ColumnName   string
 	Type         reflect.Type
@@ -54,7 +54,7 @@ func NewEntityMeta(v any) *EntityMeta {
 		TableName: tableName(v),
 		Columns:   listValueColumns(v),
 	}
-	Each(meta.Columns, func(idx int, col *ColumnDef) bool {
+	Each(meta.Columns, func(idx int, col *ColumnMeta) bool {
 		if col.IsTenantKey {
 			meta.TenantKey = col
 		}
@@ -66,7 +66,29 @@ func NewEntityMeta(v any) *EntityMeta {
 	return meta
 }
 
-func parseTags(col *ColumnDef, tags string) {
+func listValueColumns(v any) []*ColumnMeta {
+	argv := reflect.TypeOf(v)
+	return listColumns(argv)
+
+}
+func listColumns(t reflect.Type) []*ColumnMeta {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	var fields []*ColumnMeta
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.IsExported() {
+			if field.Anonymous {
+				fields = append(fields, listColumns(field.Type)...)
+			} else {
+				fields = append(fields, NewColumnDefWith(t.Field(i)))
+			}
+		}
+	}
+	return fields
+}
+func parseTags(col *ColumnMeta, tags string) {
 	tagList := strings.Split(tags, ",")
 	for _, tag := range tagList {
 		switch tag {
@@ -79,8 +101,8 @@ func parseTags(col *ColumnDef, tags string) {
 		}
 	}
 }
-func NewColumnDefWith(f reflect.StructField) *ColumnDef {
-	col := &ColumnDef{}
+func NewColumnDefWith(f reflect.StructField) *ColumnMeta {
+	col := &ColumnMeta{}
 	parseTags(col, f.Tag.Get(TagField))
 	col.Name = f.Name
 	col.ColumnName = LowerCase(f.Name)
