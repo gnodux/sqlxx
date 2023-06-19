@@ -155,6 +155,11 @@ func (b *BaseMapper[T]) init() {
 	})
 }
 
+func (b *BaseMapper[T]) Meta() *EntityMeta {
+	b.init()
+	return b.meta
+}
+
 func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err error) {
 	b.init()
 	if len(ids) == 0 {

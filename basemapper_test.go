@@ -17,6 +17,7 @@ import (
 func TestBaseMapper_Pointer(t *testing.T) {
 	mapper, err := NewMapper[BaseMapper[*User]](DefaultName)
 	assert.NoError(t, err)
+
 	user := User{
 		TenantID: 10011002,
 		Name:     "test user1",
@@ -195,7 +196,10 @@ type MyUser struct {
 func Test_listColumns(t *testing.T) {
 	my := MyUser{}
 	cols := listColumns(reflect.TypeOf(my))
-	encoder.Encode(cols)
+	err := encoder.Encode(cols)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 type UserExt struct {

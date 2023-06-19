@@ -32,9 +32,6 @@ var (
 		"args":       args,
 		"setArgs":    sets,
 		"set":        setValue,
-		//"tableName":    tableName,
-		//"hasTenantKey": hasTenantKey,
-		//"tenantKey":    tenantKey,
 	}
 )
 
