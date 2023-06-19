@@ -11,6 +11,10 @@ import (
 	"github.com/cookieY/sqlx"
 )
 
+const (
+	sqlSuffix = ".sql"
+)
+
 type SelectFunc[T any] func(args ...any) ([]T, error)
 type NamedSelectFunc[T any] func(arg any) ([]T, error)
 
@@ -86,12 +90,11 @@ func GetFn[T any](db, tpl string) GetFunc[T] {
 func NamedGetFnWith[T any](m *Factory, db, tpl string) NamedGetFunc[T] {
 	return func(arg any) (v T, err error) {
 		var d *DB
-		d, err = m.Get(db)
-		if err != nil {
+		if d, err = m.Get(db); err != nil {
 			return
 		}
-		n, err := d.PrepareTplNamed(tpl, arg)
-		if err != nil {
+		var n *sqlx.NamedStmt
+		if n, err = d.PrepareTplNamed(tpl, arg); err != nil {
 			return v, err
 		}
 		defer func(n *sqlx.NamedStmt) {

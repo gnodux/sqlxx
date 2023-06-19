@@ -116,7 +116,6 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 			} else {
 				tplList = append(tplList, sqlTpl)
 			}
-
 			switch field.Type {
 			case ExecFuncType:
 				v.Field(idx).Set(reflect.ValueOf(ExecFnWith(m, fieldDs, sqlTpl)))
@@ -129,6 +128,7 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 				})))
 			default:
 				name := field.Type.Name()
+				//去除泛型参数
 				quotaIdx := strings.Index(name, "[")
 				if quotaIdx > 0 {
 					name = name[:quotaIdx]

@@ -105,9 +105,15 @@ func (m *Factory) ParseTemplate(name string, tpl string) (*template.Template, er
 	t, err := m.template.New(name).Parse(tpl)
 	return t, err
 }
-func (m *Factory) ParseSQL(name string, args any) (query string, err error) {
+func (m *Factory) ParseSQL(sqlOrTpl string, args any) (query string, err error) {
+	if !strings.HasSuffix(sqlOrTpl, ".sql") {
+		if strings.Contains(sqlOrTpl, "{{") && strings.Contains(sqlOrTpl, "}}") {
+			//todo: add parse sql from sql annotation
+		}
+		return sqlOrTpl, nil
+	}
 	sb := &strings.Builder{}
-	err = m.template.ExecuteTemplate(sb, name, args)
+	err = m.template.ExecuteTemplate(sb, sqlOrTpl, args)
 	query = sb.String()
 	return
 }

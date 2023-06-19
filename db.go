@@ -112,8 +112,24 @@ func (d *DB) NamedSelectTpl(dest interface{}, tplName string, args interface{}) 
 	if args == nil {
 		args = map[string]any{}
 	}
-	log.Debug("named select:", named.QueryString, args)
+	log.Debug("named select tpl:", named.QueryString, args)
 	return named.Select(dest, args)
+}
+func (d *DB) NamedSelect(dest interface{}, sql string, arg any) (err error) {
+	if d == nil {
+		return ErrNilDB
+	}
+	var named *sqlx.NamedStmt
+	named, err = d.PrepareNamed(sql)
+	if err != nil {
+		return err
+	}
+	defer func(named *sqlx.NamedStmt) {
+		err = named.Close()
+
+	}(named)
+	log.Debug("named select:", named.QueryString, arg)
+	return named.Select(dest, arg)
 }
 func (d *DB) NamedExecTpl(tplName string, arg interface{}) (sql.Result, error) {
 	if d == nil {
@@ -152,6 +168,7 @@ func (d *DB) NamedQueryTpl(tplName string, arg interface{}) (*sqlx.Rows, error) 
 func (d *DB) Batch(ctx context.Context, opts *sql.TxOptions, fn func(tx *Tx) error) (err error) {
 	return d.BatchTpl(ctx, opts, "", fn)
 }
+
 func (d *DB) BatchTpl(ctx context.Context, opts *sql.TxOptions, tpl string, fn func(tx *Tx) error) (err error) {
 	if d == nil {
 		return ErrNilDB
@@ -175,6 +192,7 @@ func (d *DB) BatchTpl(ctx context.Context, opts *sql.TxOptions, tpl string, fn f
 	}
 	return
 }
+
 func Open(driverName, dataSourceName string) (*DB, error) {
 	db, err := sqlx.Open(driverName, dataSourceName)
 	if err != nil {
