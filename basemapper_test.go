@@ -197,3 +197,30 @@ func Test_listColumns(t *testing.T) {
 	cols := listColumns(reflect.TypeOf(my))
 	encoder.Encode(cols)
 }
+
+type UserExt struct {
+	User
+	Nation string `json:"nation"`
+	Phone  string `json:"phone"`
+}
+
+func Test_ToMap(t *testing.T) {
+	m := map[string]interface{}{
+		"Name":    "test",
+		"ID":      int64(9000912),
+		"Address": "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+		"Nation":  "China",
+		"Phone":   "123456789",
+	}
+	ue := &UserExt{
+		User: User{
+			Name:    "test",
+			ID:      9000912,
+			Address: "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+		},
+		Nation: "China",
+		Phone:  "123456789",
+	}
+	assert.Equal(t, m, ToMap(ue))
+	encoder.Encode(ToMap(ue))
+}

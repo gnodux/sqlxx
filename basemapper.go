@@ -30,10 +30,11 @@ type NamedEntity interface {
 }
 
 type EntityMeta struct {
-	Columns    []*ColumnMeta
-	TableName  string
-	PrimaryKey *ColumnMeta
-	TenantKey  *ColumnMeta
+	Columns        []*ColumnMeta
+	TableName      string
+	PrimaryKey     *ColumnMeta
+	TenantKey      *ColumnMeta
+	LogicDeleteKey *ColumnMeta
 }
 
 func (m *EntityMeta) String() string {
@@ -41,12 +42,17 @@ func (m *EntityMeta) String() string {
 }
 
 type ColumnMeta struct {
-	Name         string
-	ColumnName   string
-	Type         reflect.Type
-	IsPrimaryKey bool
-	IsTenantKey  bool
-	Ignore       bool
+	Name             string
+	ColumnName       string
+	Type             reflect.Type
+	IsPrimaryKey     bool
+	IsTenantKey      bool
+	IsLogicDeleteKey bool
+	Ignore           bool
+}
+
+func (c *ColumnMeta) String() string {
+	return c.ColumnName
 }
 
 func NewEntityMeta(v any) *EntityMeta {
@@ -60,6 +66,9 @@ func NewEntityMeta(v any) *EntityMeta {
 		}
 		if col.IsPrimaryKey {
 			meta.PrimaryKey = col
+		}
+		if col.IsLogicDeleteKey {
+			meta.LogicDeleteKey = col
 		}
 		return true
 	})
@@ -111,6 +120,9 @@ func NewColumnDefWith(f reflect.StructField) *ColumnMeta {
 	}
 	if strings.ToLower(f.Name) == "id" {
 		col.IsPrimaryKey = true
+	}
+	if strings.ToLower(f.Name) == "is_deleted" {
+		col.IsLogicDeleteKey = true
 	}
 	col.Type = f.Type
 	return col
@@ -250,11 +262,11 @@ func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy []string, desc bo
 	b.init()
 	argm := map[string]any{
 		"Meta":    b.meta,
-		"where":   where,
-		"orderBy": orderBy,
+		"Where":   where,
+		"OrderBy": orderBy,
 		"Limit":   limit,
 		"Offset":  offset,
-		"desc":    desc,
+		"Desc":    desc,
 	}
 	err = b.RunPrepareNamed("builtin/select_by.sql", argm, func(stmt *sqlx.NamedStmt) error {
 		argd := map[string]any{}
@@ -321,7 +333,13 @@ func ToMap(v any) map[string]any {
 		f := vv.Field(idx)
 		ft := typ.Field(idx)
 		if ft.IsExported() && !f.IsZero() {
-			result[ft.Name] = f.Interface()
+			if ft.Anonymous {
+				for k, v := range ToMap(f.Interface()) {
+					result[k] = v
+				}
+			} else {
+				result[ft.Name] = f.Interface()
+			}
 		}
 	}
 

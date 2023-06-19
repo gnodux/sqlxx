@@ -11,8 +11,8 @@ FROM `{{.Meta.TableName}}`
 {{end}}
 {{end}}
 {{- if .Limit -}}
-LIMIT {{.Limit}}
+ LIMIT {{.Limit}}
 {{end}}
 {{- if .Offset -}}
-OFFSET {{.Offset}}
+ OFFSET {{.Offset}}
 {{end}}
