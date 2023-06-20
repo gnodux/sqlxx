@@ -50,6 +50,10 @@ func TestBaseMapper_Pointer(t *testing.T) {
 				err = mapper.Create(&nu)
 				encoder.Encode(nu)
 				err = mapper.DeleteById(nu.TenantID, nu.ID)
+				if err != nil {
+					return nil, err
+				}
+				err = mapper.EraseById(nu.TenantID, nu.ID)
 				return nil, err
 			},
 		}, {

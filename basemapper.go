@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	TagField      = "colx"
+	TagField      = "dbx"
 	MarkPK        = "primaryKey"
 	MarkIgnore    = "_"
 	MarkTenantKey = "tenantKey"
+	MarkIsDeleted = "logicDelete"
 )
 
 var (
@@ -107,6 +108,8 @@ func parseTags(col *ColumnMeta, tags string) {
 			col.Ignore = true
 		case MarkTenantKey:
 			col.IsTenantKey = true
+		case MarkIsDeleted:
+			col.IsLogicDeleteKey = true
 		}
 	}
 }
@@ -118,10 +121,10 @@ func NewColumnDefWith(f reflect.StructField) *ColumnMeta {
 	if col.ColumnName == "tenant_id" {
 		col.IsTenantKey = true
 	}
-	if strings.ToLower(f.Name) == "id" {
+	if col.ColumnName == "id" {
 		col.IsPrimaryKey = true
 	}
-	if strings.ToLower(f.Name) == "is_deleted" {
+	if col.ColumnName == "is_deleted" {
 		col.IsLogicDeleteKey = true
 	}
 	col.Type = f.Type
@@ -146,6 +149,7 @@ type BaseMapper[T any] struct {
 	CreateTx TxFunc `sql:"builtin/create.sql" readonly:"false" tx:"Default"`
 	UpdateTx TxFunc `sql:"builtin/update_by_id.sql" readonly:"false" tx:"Default"`
 	DeleteTx TxFunc `sql:"builtin/delete_by_id.sql" readonly:"false" tx:"Default"`
+	EraseTx  TxFunc `sql:"builtin/erase_by_id.sql" readonly:"false" tx:"Default"`
 }
 
 func (b *BaseMapper[T]) init() {
@@ -222,6 +226,23 @@ func (b *BaseMapper[T]) DeleteById(tenantId any, ids ...any) error {
 				}); err != nil {
 					return err
 				}
+			}
+			return nil
+		})
+	})
+}
+func (b *BaseMapper[T]) EraseById(tenantId any, ids any) error {
+	b.init()
+	if ids == nil {
+		return sql.ErrNoRows
+	}
+	return b.EraseTx(func(tx *Tx) (err error) {
+		return tx.RunPrepareNamed(tx.tpl, b.meta, func(stmt *sqlx.NamedStmt) error {
+			if _, err = stmt.Exec(map[string]any{
+				"tenant_id": tenantId,
+				"id":        ids,
+			}); err != nil {
+				return err
 			}
 			return nil
 		})

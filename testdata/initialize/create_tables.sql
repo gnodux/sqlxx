@@ -12,13 +12,15 @@ CREATE TABLE IF NOT EXISTS `user`
     `password`  varchar(32)                       not null,
     `birthday`  datetime,
     `address`   varchar(255),
-    `role`      varchar(128)
+    `role`      varchar(128),
+    `is_deleted` BOOLEAN DEFAULT FALSE
 );
 CREATE TABLE IF NOT EXISTS `role`
 (
     `id`   bigint primary key auto_increment not null,
     `name` varchar(128)                      not null,
-    `desc` varchar(255)                      not NULL
+    `desc` varchar(255)                      not NULL,
+    `is_deleted` BOOLEAN DEFAULT FALSE
 );
 CREATE TABLE IF NOT EXISTS `account_book`
 (
@@ -28,7 +30,8 @@ CREATE TABLE IF NOT EXISTS `account_book`
     `owner`     BIGINT                            NOT NULL COMMENT '账本所有人',
     `name`      varchar(128)                      NOT NULL COMMENT '账本名称',
     `balance`   decimal(10, 2)                    NOT NULL DEFAULT 0 COMMENT '账户余额',
-    `desc`      varchar(255) COMMENT '账本描述'
+    `desc`      varchar(255) COMMENT '账本描述',
+    `is_deleted` BOOLEAN DEFAULT FALSE
 ) COMMENT '账本表';
 CREATE TABLE IF NOT EXISTS `transaction`
 (
@@ -40,5 +43,6 @@ CREATE TABLE IF NOT EXISTS `transaction`
     `amount`          decimal(10, 2)                       NOT NULL COMMENT ' 交易金额 ',
     `type`            enum ('Income','Expense')            NOT NULL COMMENT ' 交易类型 ',
     `desc`            varchar(255) COMMENT ' 交易描述 ',
-    `status`          enum (' Draft ',' Done ',' Cancel ') NOT NULL COMMENT ' 交易状态 '
+    `status`          enum (' Draft ',' Done ',' Cancel ') NOT NULL COMMENT ' 交易状态 ',
+    `is_deleted` BOOLEAN DEFAULT FALSE
 ) COMMENT ' 交易表 ';

@@ -8,8 +8,9 @@ package sqlxx
 import "time"
 
 type Tenant struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	IsDeleted bool   `json:"is_deleted"`
 }
 
 func (m *Tenant) TableName() string {
@@ -17,13 +18,14 @@ func (m *Tenant) TableName() string {
 }
 
 type User struct {
-	ID       int64     `json:"id"`
-	TenantID int64     `json:"tenant_id"`
-	Name     string    `json:"name"`
-	Password string    `json:"password"`
-	Birthday time.Time `json:"birthday"`
-	Address  string    `json:"address"`
-	Role     string    `json:"role"`
+	ID        int64     `json:"id"`
+	TenantID  int64     `json:"tenant_id"`
+	Name      string    `json:"name"`
+	Password  string    `json:"password"`
+	Birthday  time.Time `json:"birthday"`
+	Address   string    `json:"address"`
+	Role      string    `json:"role"`
+	IsDeleted bool      `json:"is_deleted"`
 }
 
 func (m *User) TableName() string {
@@ -31,9 +33,10 @@ func (m *User) TableName() string {
 }
 
 type Role struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-	Desc string `json:"desc"`
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Desc      string `json:"desc"`
+	IsDeleted bool   `json:"is_deleted"`
 }
 
 func (m *Role) TableName() string {
@@ -41,13 +44,14 @@ func (m *Role) TableName() string {
 }
 
 type AccountBook struct {
-	ID       int64   `json:"id"`
-	TenantID int64   `json:"tenant_id"` // 租户ID
-	CreateBy int64   `json:"create_by"` // 创建人
-	Owner    int64   `json:"owner"`     // 账本所有人
-	Name     string  `json:"name"`      // 账本名称
-	Balance  float64 `json:"balance"`   // 账户余额
-	Desc     string  `json:"desc"`      // 账本描述
+	ID        int64   `json:"id"`
+	TenantID  int64   `json:"tenant_id"` // 租户ID
+	CreateBy  int64   `json:"create_by"` // 创建人
+	Owner     int64   `json:"owner"`     // 账本所有人
+	Name      string  `json:"name"`      // 账本名称
+	Balance   float64 `json:"balance"`   // 账户余额
+	Desc      string  `json:"desc"`      // 账本描述
+	IsDeleted bool    `json:"is_deleted"`
 }
 
 func (m *AccountBook) TableName() string {
@@ -64,6 +68,7 @@ type Transaction struct {
 	Type          string  `json:"type"`            //  交易类型
 	Desc          string  `json:"desc"`            //  交易描述
 	Status        string  `json:"status"`          //  交易状态
+	IsDeleted     bool    `json:"is_deleted"`
 }
 
 func (m *Transaction) TableName() string {
