@@ -19,7 +19,7 @@ const (
 	MarkPK        = "primaryKey"
 	MarkIgnore    = "_"
 	MarkTenantKey = "tenantKey"
-	MarkIsDeleted = "logicDelete"
+	MarkIsDeleted = "softDelete"
 )
 
 var (
@@ -325,7 +325,7 @@ func setPrimaryKey(entity any, meta *EntityMeta, result sql.Result) error {
 			}
 		}
 		pkf := ev.FieldByName(meta.PrimaryKey.Name)
-		if pkf.IsValid() {
+		if pkf.IsValid() && pkf.CanSet() && pkf.CanInt() {
 			pkf.SetInt(id)
 		}
 	}

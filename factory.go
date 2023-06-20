@@ -29,6 +29,8 @@ var (
 	//CreateAndSet initialize a db
 	CreateAndSet = StdFactory.CreateAndSet
 
+	OpenDB = StdFactory.Open
+
 	//Shutdown manager and close all db
 	Shutdown = StdFactory.Shutdown
 
@@ -169,6 +171,14 @@ func (m *Factory) CreateAndSet(name string, fn DBConstructor) (*DB, error) {
 	}
 	m.Set(name, d)
 	return d, nil
+}
+func (m *Factory) Open(name, driver, dsn string) (*DB, error) {
+	db, err := OpenWith(m, driver, dsn)
+	if err != nil {
+		return nil, err
+	}
+	m.Set(name, db)
+	return db, nil
 }
 
 func (m *Factory) Set(name string, db *DB) {
