@@ -305,8 +305,23 @@ func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy []string, desc bo
 	})
 	return
 }
+
+func (b *BaseMapper[T]) CountBy(where map[string]any) (total int, err error) {
+	b.init()
+	argm := map[string]any{
+		"Meta":  b.meta,
+		"Where": where,
+	}
+	err = b.RunPrepareNamed("builtin/count_by.sql", argm, func(stmt *sqlx.NamedStmt) error {
+		return stmt.Get(&total, where)
+	})
+	return
+}
 func (b *BaseMapper[T]) SelectByExample(entity T, orderBy []string, desc bool, limit, offset int) ([]T, error) {
 	return b.SelectBy(ToMap(entity), orderBy, desc, limit, offset)
+}
+func (b *BaseMapper[T]) CountByExample(entity T) (int, error) {
+	return b.CountBy(ToMap(entity))
 }
 
 func setPrimaryKey(entity any, meta *EntityMeta, result sql.Result) error {

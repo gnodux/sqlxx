@@ -140,10 +140,17 @@ func TestBaseMapper_Struct(t *testing.T) {
 			Name: "select by name",
 			fn: func() (any, error) {
 				users, err := mapper.SelectBy(map[string]any{
-					"Name":     "user_2%",
-					"TenantId": 0,
+					"Name": "user_2%",
 				}, []string{"Name", "Role"}, true, 100, 10)
 				return users, err
+			},
+		}, {
+			Name: "count by name",
+			fn: func() (any, error) {
+				total, err := mapper.CountBy(map[string]any{
+					"Name": "user_2%",
+				})
+				return total, err
 			},
 		},
 		{
@@ -153,6 +160,15 @@ func TestBaseMapper_Struct(t *testing.T) {
 					Address: "%57",
 					Name:    "user_%",
 				}, []string{"role"}, true, 100, 0)
+				return users, err
+			},
+		}, {
+			Name: "count by example",
+			fn: func() (any, error) {
+				users, err := mapper.CountByExample(User{
+					Address: "%57",
+					Name:    "user_%",
+				})
 				return users, err
 			},
 		},
