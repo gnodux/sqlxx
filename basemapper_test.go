@@ -7,6 +7,7 @@ package sqlxx
 
 import (
 	"fmt"
+	"github.com/gnodux/sqlxx/expr"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"reflect"
@@ -170,6 +171,14 @@ func TestBaseMapper_Struct(t *testing.T) {
 					Name:    "user_%",
 				})
 				return users, err
+			},
+		}, {
+			Name: "SimpleExpr select with count",
+			fn: func() (any, error) {
+				result, total, err := mapper.SimpleQueryWithCount(expr.Simple(User{Name: "user_%"}).Desc("role").Limit(100).Offset(0))
+				assert.Greater(t, total, 0)
+				t.Log("total", total)
+				return result, err
 			},
 		},
 	}

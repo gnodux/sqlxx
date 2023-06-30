@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/cookieY/sqlx"
+	"github.com/gnodux/sqlxx/expr"
 	"reflect"
 	"strings"
 	"sync"
@@ -283,10 +284,20 @@ func (b *BaseMapper[T]) Create(entities ...T) error {
 		})
 	})
 }
-
+func (b *BaseMapper[T]) SimpleQuery(query *expr.SimpleExpr) (result []T, err error) {
+	return b.SelectBy(query.Condition, query.SortColumns, query.IsDesc, query.LimitRows, query.OffsetRows)
+}
+func (b *BaseMapper[T]) SimpleQueryWithCount(query *expr.SimpleExpr) (result []T, count int, err error) {
+	count, err = b.CountBy(query.Condition)
+	if err != nil {
+		return
+	}
+	result, err = b.SelectBy(query.Condition, query.SortColumns, query.IsDesc, query.LimitRows, query.OffsetRows)
+	return
+}
 func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy []string, desc bool, limit, offset int) (result []T, err error) {
 	b.init()
-	argm := map[string]any{
+	argMap := map[string]any{
 		"Meta":    b.meta,
 		"Where":   where,
 		"OrderBy": orderBy,
@@ -294,14 +305,14 @@ func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy []string, desc bo
 		"Offset":  offset,
 		"Desc":    desc,
 	}
-	err = b.RunPrepareNamed("builtin/select_by.sql", argm, func(stmt *sqlx.NamedStmt) error {
-		argd := map[string]any{}
+	err = b.RunPrepareNamed("builtin/select_by.sql", argMap, func(stmt *sqlx.NamedStmt) error {
+		queryArgs := map[string]any{}
 		for k, v := range where {
-			argd[k] = v
+			queryArgs[k] = v
 		}
-		argd["Limit"] = limit
-		argd["Offset"] = offset
-		return stmt.Select(&result, argd)
+		queryArgs["Limit"] = limit
+		queryArgs["Offset"] = offset
+		return stmt.Select(&result, queryArgs)
 	})
 	return
 }
