@@ -34,15 +34,14 @@ func (s *SimpleExpr) WithMap(m map[string]any) *SimpleExpr {
 	}
 	return s
 }
-func (s *SimpleExpr) OrderBy(direction string, columns ...string) *SimpleExpr {
-	for _, col := range columns {
-		s.Sort[col] = direction
+func (s *SimpleExpr) OrderBy(sortMap map[string]string) *SimpleExpr {
+	for k, v := range sortMap {
+		s.Sort[k] = v
 	}
 	return s
 }
 
 func (s *SimpleExpr) Asc(columns ...string) *SimpleExpr {
-
 	for _, col := range columns {
 		s.Sort[col] = SortAsc
 	}
