@@ -5,13 +5,17 @@
 
 package expr
 
+const (
+	SortAsc  = "ASC"
+	SortDesc = "DESC"
+)
+
 // SimpleExpr is a simple query
 type SimpleExpr struct {
-	Condition   map[string]any
-	SortColumns []string
-	IsDesc      bool
-	LimitRows   int
-	OffsetRows  int
+	Condition  map[string]any
+	Sort       map[string]string
+	LimitRows  int
+	OffsetRows int
 }
 
 func (s *SimpleExpr) With(column string, value any) *SimpleExpr {
@@ -30,22 +34,25 @@ func (s *SimpleExpr) WithMap(m map[string]any) *SimpleExpr {
 	}
 	return s
 }
-func (s *SimpleExpr) OrderBy(columns ...string) *SimpleExpr {
-	s.SortColumns = columns
+func (s *SimpleExpr) OrderBy(direction string, columns ...string) *SimpleExpr {
+	for _, col := range columns {
+		s.Sort[col] = direction
+	}
 	return s
 }
+
 func (s *SimpleExpr) Asc(columns ...string) *SimpleExpr {
-	if len(columns) > 0 {
-		s.SortColumns = columns
+
+	for _, col := range columns {
+		s.Sort[col] = SortAsc
 	}
-	s.IsDesc = false
+
 	return s
 }
 func (s *SimpleExpr) Desc(columns ...string) *SimpleExpr {
-	if len(columns) > 0 {
-		s.SortColumns = columns
+	for _, col := range columns {
+		s.Sort[col] = SortDesc
 	}
-	s.IsDesc = true
 	return s
 }
 func (s *SimpleExpr) Limit(limit int) *SimpleExpr {
@@ -59,6 +66,7 @@ func (s *SimpleExpr) Offset(offset int) *SimpleExpr {
 func Simple(examples ...any) *SimpleExpr {
 	query := &SimpleExpr{
 		Condition: map[string]any{},
+		Sort:      map[string]string{},
 	}
 	for _, example := range examples {
 		switch w := example.(type) {
@@ -69,4 +77,25 @@ func Simple(examples ...any) *SimpleExpr {
 		}
 	}
 	return query
+}
+
+func Asc(columns ...string) map[string]string {
+	if len(columns) == 0 {
+		return nil
+	}
+	result := map[string]string{}
+	for _, col := range columns {
+		result[col] = SortAsc
+	}
+	return result
+}
+func Desc(columns ...string) map[string]string {
+	if len(columns) == 0 {
+		return nil
+	}
+	result := map[string]string{}
+	for _, col := range columns {
+		result[col] = SortDesc
+	}
+	return result
 }

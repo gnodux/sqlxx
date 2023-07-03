@@ -6,6 +6,7 @@
 package sqlxx
 
 import (
+	"crypto/md5"
 	"fmt"
 	"github.com/gnodux/sqlxx/builtinsql"
 	"io/fs"
@@ -104,19 +105,38 @@ func (m *Factory) ParseTemplateFS(f fs.FS, patterns ...string) error {
 	return nil
 }
 func (m *Factory) ParseTemplate(name string, tpl string) (*template.Template, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	t, err := m.template.New(name).Parse(tpl)
 	return t, err
 }
 func (m *Factory) ParseSQL(sqlOrTpl string, args any) (query string, err error) {
 	if !strings.HasSuffix(sqlOrTpl, ".sql") {
 		if strings.Contains(sqlOrTpl, "{{") && strings.Contains(sqlOrTpl, "}}") {
-			//todo: add parse sql from sql annotation
+			name := fmt.Sprintf("%x", md5.Sum([]byte(sqlOrTpl)))
+			t := m.template.Lookup(name)
+			if t == nil {
+				t, err = m.ParseTemplate(name, sqlOrTpl)
+			}
+			if err != nil {
+				return
+			}
+			sb := &strings.Builder{}
+			err = t.Execute(sb, args)
+			if err == nil {
+				query = sb.String()
+			}
+
+		} else {
+			query = sqlOrTpl
 		}
-		return sqlOrTpl, nil
+	} else {
+		sb := &strings.Builder{}
+		err = m.template.ExecuteTemplate(sb, sqlOrTpl, args)
+		if err == nil {
+			query = sb.String()
+		}
 	}
-	sb := &strings.Builder{}
-	err = m.template.ExecuteTemplate(sb, sqlOrTpl, args)
-	query = sb.String()
 	return
 }
 func (m *Factory) Get(name string) (*DB, error) {

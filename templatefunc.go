@@ -7,6 +7,7 @@ package sqlxx
 
 import (
 	"fmt"
+	"github.com/gnodux/sqlxx/expr"
 	"reflect"
 	"strings"
 	"text/template"
@@ -22,8 +23,10 @@ var (
 		"where":      where,
 		"namedWhere": namedWhere,
 		"nwhere":     namedWhere,
-		"asc":        asc,
-		"desc":       desc,
+		"asc": func(cols []string) string {
+			return orderByMap(expr.Asc(cols...))
+		},
+		"desc":       func(cols []string) string { return orderByMap(expr.Desc(cols...)) },
 		"v":          sqlValue,
 		"n":          sqlName,
 		"list":       sqlValues,
@@ -32,6 +35,7 @@ var (
 		"args":       args,
 		"setArgs":    sets,
 		"set":        setValue,
+		"orderBy":    orderByMap,
 	}
 )
 
@@ -45,6 +49,25 @@ func setValue(v any, newV any) any {
 	}
 	rv.Set(reflect.ValueOf(newV))
 	return nil
+}
+
+func orderByMap(order map[string]string) string {
+	if len(order) == 0 {
+		return ""
+	}
+	sb := strings.Builder{}
+	pre := " ORDER BY "
+	for k, v := range order {
+		sb.WriteString(pre)
+		sb.WriteString(sqlName(k))
+		sb.WriteString(" ")
+		sb.WriteString(v)
+		pre = ","
+	}
+	if sb.Len() > 0 {
+		sb.WriteString(" ")
+	}
+	return sb.String()
 }
 
 func columns(cols []*ColumnMeta) string {
@@ -178,38 +201,39 @@ func whereWith(arg any, op string, named bool) string {
 	return buf.String()
 
 }
-func orderBy(direction string, arg any) string {
 
-	if arg == nil {
-		return ""
-	}
-	argv := reflect.ValueOf(arg)
-	sb := strings.Builder{}
-	switch argv.Kind() {
-	case reflect.Slice, reflect.Array:
-		if argv.Len() == 0 {
-			return ""
-		}
-		sb.WriteString("ORDER BY ")
-		splitter := ""
-		for idx := 0; idx < argv.Len(); idx++ {
-			sb.WriteString(splitter)
-			sb.WriteString(sqlName(argv.Index(idx).Interface()))
-			splitter = ","
-		}
-	}
-	if sb.Len() > 0 {
-		sb.WriteString(" ")
-		sb.WriteString(direction)
-	}
-	return sb.String()
-}
-func asc(args any) string {
-	return orderBy("ASC", args)
-}
-func desc(args any) string {
-	return orderBy("DESC", args)
-}
+//func orderBy(direction string, arg any) string {
+//
+//	if arg == nil {
+//		return ""
+//	}
+//	argv := reflect.ValueOf(arg)
+//	sb := strings.Builder{}
+//	switch argv.Kind() {
+//	case reflect.Slice, reflect.Array:
+//		if argv.Len() == 0 {
+//			return ""
+//		}
+//		sb.WriteString("ORDER BY ")
+//		splitter := ""
+//		for idx := 0; idx < argv.Len(); idx++ {
+//			sb.WriteString(splitter)
+//			sb.WriteString(sqlName(argv.Index(idx).Interface()))
+//			splitter = ","
+//		}
+//	}
+//	if sb.Len() > 0 {
+//		sb.WriteString(" ")
+//		sb.WriteString(direction)
+//	}
+//	return sb.String()
+//}
+//func asc(args any) string {
+//	return orderBy("ASC", args)
+//}
+//func desc(args any) string {
+//	return orderBy("DESC", args)
+//}
 
 // sqlValues list of sqlValues
 func sqlValues(v any) string {

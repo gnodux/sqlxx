@@ -213,6 +213,8 @@ func (b *BaseMapper[T]) Update(entities ...T) error {
 		})
 	})
 }
+
+// DeleteById will set the is_deleted flag to true(if is_deleted column exists) or really delete record(if is_deleted column not exists).
 func (b *BaseMapper[T]) DeleteById(tenantId any, ids ...any) error {
 	b.init()
 	if len(ids) == 0 {
@@ -232,6 +234,8 @@ func (b *BaseMapper[T]) DeleteById(tenantId any, ids ...any) error {
 		})
 	})
 }
+
+// EraseById will REALLY delete the record from database.
 func (b *BaseMapper[T]) EraseById(tenantId any, ids any) error {
 	b.init()
 	if ids == nil {
@@ -285,17 +289,17 @@ func (b *BaseMapper[T]) Create(entities ...T) error {
 	})
 }
 func (b *BaseMapper[T]) SimpleQuery(query *expr.SimpleExpr) (result []T, err error) {
-	return b.SelectBy(query.Condition, query.SortColumns, query.IsDesc, query.LimitRows, query.OffsetRows)
+	return b.SelectBy(query.Condition, query.Sort, query.LimitRows, query.OffsetRows)
 }
 func (b *BaseMapper[T]) SimpleQueryWithCount(query *expr.SimpleExpr) (result []T, count int, err error) {
 	count, err = b.CountBy(query.Condition)
 	if err != nil {
 		return
 	}
-	result, err = b.SelectBy(query.Condition, query.SortColumns, query.IsDesc, query.LimitRows, query.OffsetRows)
+	result, err = b.SelectBy(query.Condition, query.Sort, query.LimitRows, query.OffsetRows)
 	return
 }
-func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy []string, desc bool, limit, offset int) (result []T, err error) {
+func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy map[string]string, limit, offset int) (result []T, err error) {
 	b.init()
 	argMap := map[string]any{
 		"Meta":    b.meta,
@@ -303,7 +307,6 @@ func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy []string, desc bo
 		"OrderBy": orderBy,
 		"Limit":   limit,
 		"Offset":  offset,
-		"Desc":    desc,
 	}
 	err = b.RunPrepareNamed("builtin/select_by.sql", argMap, func(stmt *sqlx.NamedStmt) error {
 		queryArgs := map[string]any{}
@@ -328,8 +331,8 @@ func (b *BaseMapper[T]) CountBy(where map[string]any) (total int, err error) {
 	})
 	return
 }
-func (b *BaseMapper[T]) SelectByExample(entity T, orderBy []string, desc bool, limit, offset int) ([]T, error) {
-	return b.SelectBy(ToMap(entity), orderBy, desc, limit, offset)
+func (b *BaseMapper[T]) SelectByExample(entity T, orderBy map[string]string, limit, offset int) ([]T, error) {
+	return b.SelectBy(ToMap(entity), orderBy, limit, offset)
 }
 func (b *BaseMapper[T]) CountByExample(entity T) (int, error) {
 	return b.CountBy(ToMap(entity))

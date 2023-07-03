@@ -142,7 +142,7 @@ func TestBaseMapper_Struct(t *testing.T) {
 			fn: func() (any, error) {
 				users, err := mapper.SelectBy(map[string]any{
 					"Name": "user_2%",
-				}, []string{"Name", "Role"}, true, 100, 10)
+				}, expr.Desc("Name", "Role"), 100, 10)
 				return users, err
 			},
 		}, {
@@ -160,7 +160,7 @@ func TestBaseMapper_Struct(t *testing.T) {
 				users, err := mapper.SelectByExample(User{
 					Address: "%57",
 					Name:    "user_%",
-				}, []string{"role"}, true, 100, 0)
+				}, expr.Desc("role"), 100, 0)
 				return users, err
 			},
 		}, {
@@ -202,7 +202,7 @@ func TestBaseMapper_Duck(t *testing.T) {
 	assert.NoError(t, err)
 	users, err := m.User.SelectByExample(User{
 		Name: "user_1%",
-	}, []string{"role"}, true, 100, 0)
+	}, expr.Desc("role"), 100, 0)
 	assert.NoError(t, err)
 	encoder.Encode(users)
 }

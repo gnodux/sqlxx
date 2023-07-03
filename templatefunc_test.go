@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"text/template"
@@ -42,7 +43,7 @@ func TestTemplateFunc(t *testing.T) {
 		}, {
 			name: "where desc 2",
 			args: args{tpl: "desc.sql", arg: map[string]any{
-				"cols": []any{"a", "c", 1},
+				"cols": []string{"a", "c"},
 				"where": struct {
 					Name string
 					Age  int
@@ -93,4 +94,12 @@ func TestTemplateFunc(t *testing.T) {
 			fmt.Println(buf)
 		})
 	}
+}
+func TestMapLength(t *testing.T) {
+	m := map[string]any{}
+	mv := reflect.ValueOf(m)
+	if mv.IsZero() {
+		fmt.Println("zero")
+	}
+	fmt.Println(mv.Len())
 }
