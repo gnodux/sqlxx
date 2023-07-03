@@ -23,9 +23,7 @@ var (
 		"where":      where,
 		"namedWhere": namedWhere,
 		"nwhere":     namedWhere,
-		"asc": func(cols []string) string {
-			return orderByMap(expr.Asc(cols...))
-		},
+		"asc":        func(cols []string) string { return orderByMap(expr.Asc(cols...)) },
 		"desc":       func(cols []string) string { return orderByMap(expr.Desc(cols...)) },
 		"v":          sqlValue,
 		"n":          sqlName,
@@ -59,7 +57,7 @@ func orderByMap(order map[string]string) string {
 	pre := " ORDER BY "
 	for k, v := range order {
 		sb.WriteString(pre)
-		sb.WriteString(sqlName(k))
+		sb.WriteString(sqlName(LowerCase(k)))
 		sb.WriteString(" ")
 		sb.WriteString(v)
 		pre = ","
