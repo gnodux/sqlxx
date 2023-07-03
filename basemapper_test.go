@@ -197,6 +197,31 @@ type UserMapper struct {
 	Role BaseMapper[Role]
 }
 
+type RoleExtMapper struct {
+	BaseMapper[Role]
+	ListByRoleName SelectFunc[Role]       `sql:"select * from role where name = ?"`
+	ListByRole     NamedSelectFunc[*Role] `sql:"select * from role where name = :name"`
+	ListUsers      NamedSelectFunc[*User] `sql:"select * from user where role = :name"`
+}
+
+func TestExtMapper(t *testing.T) {
+	m, err := NewMapper[RoleExtMapper](DefaultName)
+	assert.NoError(t, err, "create mapper error")
+	users, err := m.ListByRoleName("admin")
+	assert.NoError(t, err, "list by role error")
+	encoder.Encode(users)
+	roles, err := m.ListByRole(&Role{Name: "admin"})
+	assert.NoError(t, err, "list by role error")
+	encoder.Encode(roles)
+
+	roles, err = m.ListByRole(&Role{Name: "admin"})
+	assert.NoError(t, err, "list by role error")
+	encoder.Encode(roles)
+	adminUsers, err := m.ListUsers(&Role{Name: "admin"})
+	assert.NoError(t, err, "list by role error")
+	encoder.Encode(adminUsers)
+}
+
 func TestBaseMapper_Duck(t *testing.T) {
 	m, err := NewMapper[UserMapper](DefaultName)
 	assert.NoError(t, err)
