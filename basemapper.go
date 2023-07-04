@@ -34,6 +34,8 @@ type NamedEntity interface {
 type EntityMeta struct {
 	Columns        []*ColumnMeta
 	TableName      string
+	Name           string
+	Type           reflect.Type
 	PrimaryKey     *ColumnMeta
 	TenantKey      *ColumnMeta
 	LogicDeleteKey *ColumnMeta
@@ -61,6 +63,8 @@ func NewEntityMeta(v any) *EntityMeta {
 	meta := &EntityMeta{
 		TableName: tableName(v),
 		Columns:   listValueColumns(v),
+		Type:      reflect.TypeOf(v),
+		Name:      typeName(v),
 	}
 	Each(meta.Columns, func(idx int, col *ColumnMeta) bool {
 		if col.IsTenantKey {
@@ -141,6 +145,13 @@ func tableName(v any) string {
 		t = t.Elem()
 	}
 	return LowerCase(t.Name())
+}
+func typeName(v any) string {
+	t := reflect.TypeOf(v)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return t.Name()
 }
 
 type BaseMapper[T any] struct {
