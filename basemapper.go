@@ -214,7 +214,7 @@ func (b *BaseMapper[T]) Update(entities ...T) error {
 		return sql.ErrNoRows
 	}
 	return b.UpdateTx(func(tx *Tx) (err error) {
-		return tx.RunPrepareNamed(tx.tpl, b.meta, func(stmt *sqlx.NamedStmt) error {
+		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
 			for _, entity := range entities {
 				if _, err = stmt.Exec(entity); err != nil {
 					return err
@@ -232,7 +232,7 @@ func (b *BaseMapper[T]) DeleteById(tenantId any, ids ...any) error {
 		return sql.ErrNoRows
 	}
 	return b.DeleteTx(func(tx *Tx) (err error) {
-		return tx.RunPrepareNamed(tx.tpl, b.meta, func(stmt *sqlx.NamedStmt) error {
+		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
 			for _, id := range ids {
 				if _, err = stmt.Exec(map[string]any{
 					"tenant_id": tenantId,
@@ -253,7 +253,7 @@ func (b *BaseMapper[T]) EraseById(tenantId any, ids any) error {
 		return sql.ErrNoRows
 	}
 	return b.EraseTx(func(tx *Tx) (err error) {
-		return tx.RunPrepareNamed(tx.tpl, b.meta, func(stmt *sqlx.NamedStmt) error {
+		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
 			if _, err = stmt.Exec(map[string]any{
 				"tenant_id": tenantId,
 				"id":        ids,
@@ -270,7 +270,7 @@ func (b *BaseMapper[T]) UpdateById(entities ...T) error {
 		return sql.ErrNoRows
 	}
 	return b.UpdateTx(func(tx *Tx) (err error) {
-		return tx.RunPrepareNamed(tx.tpl, b.meta, func(stmt *sqlx.NamedStmt) error {
+		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
 			for _, entity := range entities {
 				if _, err = stmt.Exec(entity); err != nil {
 					return err
@@ -286,7 +286,7 @@ func (b *BaseMapper[T]) Create(entities ...T) error {
 		return sql.ErrNoRows
 	}
 	return b.CreateTx(func(tx *Tx) (err error) {
-		return tx.RunPrepareNamed(tx.tpl, b.meta, func(stmt *sqlx.NamedStmt) error {
+		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
 			var result sql.Result
 			for _, entity := range entities {
 				if result, err = stmt.Exec(entity); err != nil {

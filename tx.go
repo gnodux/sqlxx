@@ -17,12 +17,17 @@ type Tx struct {
 	tpl string
 }
 
+func (t *Tx) DefaultTpl() string {
+	return t.tpl
+}
 func (t *Tx) Parse(tplName string, args any) (string, error) {
 	if t.m == nil {
 		return "", ErrNoManager
 	}
 	return t.m.ParseSQL(tplName, args)
 }
+
+// ParseAndPrepareNamed use tplName to parse and prepare named statement
 func (t *Tx) ParseAndPrepareNamed(tplName string, arg any) (*sqlx.NamedStmt, error) {
 	query, err := t.Parse(tplName, arg)
 	if err != nil {
@@ -30,7 +35,9 @@ func (t *Tx) ParseAndPrepareNamed(tplName string, arg any) (*sqlx.NamedStmt, err
 	}
 	return t.PrepareNamed(query)
 }
-func (t *Tx) RunPrepareNamed(tplName string, arg any, fn func(*sqlx.NamedStmt) error) (err error) {
+
+// RunPrepareNamedTpl use tplName to prepare named statement
+func (t *Tx) RunPrepareNamedTpl(tplName string, arg any, fn func(*sqlx.NamedStmt) error) (err error) {
 	var stmt *sqlx.NamedStmt
 	if stmt, err = t.ParseAndPrepareNamed(tplName, arg); err != nil {
 		return
@@ -43,6 +50,12 @@ func (t *Tx) RunPrepareNamed(tplName string, arg any, fn func(*sqlx.NamedStmt) e
 	}()
 	return fn(stmt)
 }
+
+// RunCurrentPrepareNamed use current tpl to prepare named statement
+func (t *Tx) RunCurrentPrepareNamed(arg any, fn func(*sqlx.NamedStmt) error) (err error) {
+	return t.RunPrepareNamedTpl(t.tpl, arg, fn)
+}
+
 func (t *Tx) ParseAndPrepare(tplName string, arg any) (*sqlx.Stmt, error) {
 	query, err := t.Parse(tplName, arg)
 	if err != nil {
@@ -50,7 +63,7 @@ func (t *Tx) ParseAndPrepare(tplName string, arg any) (*sqlx.Stmt, error) {
 	}
 	return t.Preparex(query)
 }
-func (t *Tx) RunPrepared(tplName string, arg any, fn func(*sqlx.Stmt) error) (err error) {
+func (t *Tx) RunPreparedTpl(tplName string, arg any, fn func(*sqlx.Stmt) error) (err error) {
 	var stmt *sqlx.Stmt
 	if stmt, err = t.ParseAndPrepare(tplName, arg); err != nil {
 		return
@@ -63,6 +76,10 @@ func (t *Tx) RunPrepared(tplName string, arg any, fn func(*sqlx.Stmt) error) (er
 	}()
 	return fn(stmt)
 }
+func (t *Tx) RunCurrentPrepared(arg any, fn func(*sqlx.Stmt) error) (err error) {
+	return t.RunPreparedTpl(t.tpl, arg, fn)
+}
+
 func (t *Tx) PrepareNamed(query string) (*sqlx.NamedStmt, error) {
 	log.Debug("prepare named query:", query)
 	return t.Tx.PrepareNamed(query)
@@ -71,6 +88,8 @@ func (t *Tx) Preparex(query string) (*sqlx.Stmt, error) {
 	log.Debug("prepare query:", query)
 	return t.Tx.Preparex(query)
 }
+
+// NamedQueryTpl use tpl to query named statement
 func (t *Tx) NamedExecTpl(tplName string, arg interface{}) (sql.Result, error) {
 	query, err := t.Parse(tplName, arg)
 	if err != nil {
@@ -79,6 +98,11 @@ func (t *Tx) NamedExecTpl(tplName string, arg interface{}) (sql.Result, error) {
 	log.Debug("named exec query:", query, arg)
 	return t.NamedExec(query, arg)
 }
+
+// NamedExecCurrent use current tpl to exec named statement
+func (t *Tx) NamedExecCurrent(arg interface{}) (sql.Result, error) {
+	return t.NamedExecTpl(t.tpl, arg)
+}
 func (t *Tx) ExecTpl(tplName string, args ...interface{}) (sql.Result, error) {
 	query, err := t.Parse(tplName, args)
 	if err != nil {
@@ -86,6 +110,11 @@ func (t *Tx) ExecTpl(tplName string, args ...interface{}) (sql.Result, error) {
 	}
 	log.Debug("exec query:", query, args)
 	return t.Exec(query, args...)
+}
+
+// ExecCurrent use current tpl to exec
+func (t *Tx) ExecCurrent(args ...interface{}) (sql.Result, error) {
+	return t.ExecTpl(t.tpl, args...)
 }
 
 func (t *Tx) ExecWith(args ...interface{}) (sql.Result, error) {
