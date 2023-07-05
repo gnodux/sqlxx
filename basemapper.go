@@ -156,12 +156,13 @@ func typeName(v any) string {
 
 type BaseMapper[T any] struct {
 	*DB
-	once     sync.Once
-	meta     *EntityMeta
-	CreateTx TxFunc `sql:"builtin/create.sql" readonly:"false" tx:"Default"`
-	UpdateTx TxFunc `sql:"builtin/update_by_id.sql" readonly:"false" tx:"Default"`
-	DeleteTx TxFunc `sql:"builtin/delete_by_id.sql" readonly:"false" tx:"Default"`
-	EraseTx  TxFunc `sql:"builtin/erase_by_id.sql" readonly:"false" tx:"Default"`
+	once         sync.Once
+	meta         *EntityMeta
+	CreateTx     TxFunc `sql:"builtin/create.sql" readonly:"false" tx:"Default"`
+	UpdateTx     TxFunc `sql:"builtin/update_by_id_tenant_id.sql" readonly:"false" tx:"Default"`
+	UpdateByIdTx TxFunc `sql:"builtin/update_by_id.sql" readonly:"false" tx:"Default"`
+	DeleteTx     TxFunc `sql:"builtin/delete_by_id.sql" readonly:"false" tx:"Default"`
+	EraseTx      TxFunc `sql:"builtin/erase_by_id.sql" readonly:"false" tx:"Default"`
 }
 
 func (b *BaseMapper[T]) init() {
@@ -208,12 +209,32 @@ func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err er
 	err = stmt.Select(&entities, argList...)
 	return entities, err
 }
+
+// Update will update all columns of the entity.(如果包含租户ID,则会自动添加租户ID作为更新条件)
 func (b *BaseMapper[T]) Update(entities ...T) error {
 	b.init()
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
 	return b.UpdateTx(func(tx *Tx) (err error) {
+		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
+			for _, entity := range entities {
+				if _, err = stmt.Exec(entity); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	})
+}
+
+// UpdateById will update all columns of the entity.(不会自动添加租户ID作为更新条件)
+func (b *BaseMapper[T]) UpdateById(entities ...T) error {
+	b.init()
+	if len(entities) == 0 {
+		return sql.ErrNoRows
+	}
+	return b.UpdateByIdTx(func(tx *Tx) (err error) {
 		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
 			for _, entity := range entities {
 				if _, err = stmt.Exec(entity); err != nil {
@@ -247,39 +268,27 @@ func (b *BaseMapper[T]) DeleteById(tenantId any, ids ...any) error {
 }
 
 // EraseById will REALLY delete the record from database.
-func (b *BaseMapper[T]) EraseById(tenantId any, ids any) error {
+func (b *BaseMapper[T]) EraseById(tenantId any, ids ...any) error {
 	b.init()
 	if ids == nil {
 		return sql.ErrNoRows
 	}
 	return b.EraseTx(func(tx *Tx) (err error) {
 		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
-			if _, err = stmt.Exec(map[string]any{
-				"tenant_id": tenantId,
-				"id":        ids,
-			}); err != nil {
-				return err
-			}
-			return nil
-		})
-	})
-}
-func (b *BaseMapper[T]) UpdateById(entities ...T) error {
-	b.init()
-	if len(entities) == 0 {
-		return sql.ErrNoRows
-	}
-	return b.UpdateTx(func(tx *Tx) (err error) {
-		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
-			for _, entity := range entities {
-				if _, err = stmt.Exec(entity); err != nil {
+			for _, id := range ids {
+				if _, err = stmt.Exec(map[string]any{
+					"tenant_id": tenantId,
+					"id":        id,
+				}); err != nil {
 					return err
 				}
+				return nil
 			}
 			return nil
 		})
 	})
 }
+
 func (b *BaseMapper[T]) Create(entities ...T) error {
 	b.init()
 	if len(entities) == 0 {
