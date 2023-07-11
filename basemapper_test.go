@@ -64,7 +64,7 @@ func TestBaseMapper_Pointer(t *testing.T) {
 					return nil, err
 				}
 				user.Role = "test2"
-				if err = mapper.Update(&user); err != nil {
+				if err = mapper.Update(true, &user); err != nil {
 					return user, err
 				}
 				if err = mapper.DeleteById(user.TenantID, user.ID); err != nil {
@@ -129,7 +129,7 @@ func TestBaseMapper_Struct(t *testing.T) {
 					return nil, err
 				}
 				user.Role = "test2"
-				if err = mapper.Update(user); err != nil {
+				if err = mapper.Update(true, user); err != nil {
 					return user, err
 				}
 				if err = mapper.DeleteById(user.TenantID, user.ID); err != nil {
@@ -179,6 +179,32 @@ func TestBaseMapper_Struct(t *testing.T) {
 				assert.Greater(t, total, 0)
 				t.Log("total", total)
 				return result, err
+			},
+		}, {
+			Name: "Partial update user",
+			fn: func() (any, error) {
+				u := User{
+					TenantID: 10011002,
+					Name:     "test user1",
+					Password: fmt.Sprintf("%d", rand.Int63n(99999)),
+					Birthday: time.Now(),
+					Address:  "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+					Role:     "user",
+				}
+				if err = mapper.Create(u); err != nil {
+					return nil, err
+				}
+				if err = mapper.PartialUpdate(false, nil, User{
+					ID:      u.ID,
+					Address: "Room 412,DONGFENG KASO,JIUXIANQIAO Road,ChaoYang, BeiJing",
+				}); err != nil {
+					return nil, err
+				}
+				if err = mapper.AutoPartialUpdate(true, u); err != nil {
+					return nil, err
+				}
+				err = mapper.DeleteById(u.TenantID, u.ID)
+				return nil, err
 			},
 		},
 	}

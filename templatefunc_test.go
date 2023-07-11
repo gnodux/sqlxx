@@ -77,9 +77,19 @@ func TestTemplateFunc(t *testing.T) {
 					"name":     "x",
 				},
 			},
+		}, {
+			name: "runtime function test",
+			args: args{
+				tpl: "runtimefn.sql",
+				arg: map[string]any{
+					"current": func(a, b, c string) string {
+						return strings.Join([]string{a, b, c}, ",")
+					},
+				},
+			},
 		},
 	}
-	tpl := template.New("tests").Funcs(DefaultFuncMap)
+	tpl := template.New("tests").Funcs(MakeFuncMap(MySQL))
 	_, err := tpl.ParseFS(os.DirFS("testdata/templates"), "*.sql")
 	assert.NoError(t, err)
 

@@ -45,6 +45,16 @@ func (m *EntityMeta) String() string {
 	return m.TableName
 }
 
+// ColumnName return column name by field name
+func (m *EntityMeta) ColumnName(name string) string {
+	for _, col := range m.Columns {
+		if col.Name == name {
+			return col.ColumnName
+		}
+	}
+	return name
+}
+
 type ColumnMeta struct {
 	Name             string
 	ColumnName       string
@@ -122,7 +132,7 @@ func NewColumnDefWith(f reflect.StructField) *ColumnMeta {
 	col := &ColumnMeta{}
 	parseTags(col, f.Tag.Get(TagField))
 	col.Name = f.Name
-	col.ColumnName = LowerCase(f.Name)
+	col.ColumnName = NameFunc(f.Name)
 	if col.ColumnName == "tenant_id" {
 		col.IsTenantKey = true
 	}
@@ -144,7 +154,7 @@ func tableName(v any) string {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	return LowerCase(t.Name())
+	return NameFunc(t.Name())
 }
 func typeName(v any) string {
 	t := reflect.TypeOf(v)
@@ -156,13 +166,14 @@ func typeName(v any) string {
 
 type BaseMapper[T any] struct {
 	*DB
-	once         sync.Once
-	meta         *EntityMeta
-	CreateTx     TxFunc `sql:"builtin/create.sql" readonly:"false" tx:"Default"`
-	UpdateTx     TxFunc `sql:"builtin/update_by_id_tenant_id.sql" readonly:"false" tx:"Default"`
-	UpdateByIdTx TxFunc `sql:"builtin/update_by_id.sql" readonly:"false" tx:"Default"`
-	DeleteTx     TxFunc `sql:"builtin/delete_by_id.sql" readonly:"false" tx:"Default"`
-	EraseTx      TxFunc `sql:"builtin/erase_by_id.sql" readonly:"false" tx:"Default"`
+	once            sync.Once
+	meta            *EntityMeta
+	CreateTx        TxFunc `sql:"builtin/create.sql" readonly:"false" tx:"Default"`
+	UpdateTx        TxFunc `sql:"builtin/update_by_id_tenant_id.sql" readonly:"false" tx:"Default"`
+	UpdateByIdTx    TxFunc `sql:"builtin/update_by_id.sql" readonly:"false" tx:"Default"`
+	PartialUpdateTx TxFunc `sql:"builtin/partial_update_by_id_tenant_id.sql" readonly:"false" tx:"Default"`
+	DeleteTx        TxFunc `sql:"builtin/delete_by_id.sql" readonly:"false" tx:"Default"`
+	EraseTx         TxFunc `sql:"builtin/erase_by_id.sql" readonly:"false" tx:"Default"`
 }
 
 func (b *BaseMapper[T]) init() {
@@ -210,14 +221,19 @@ func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err er
 	return entities, err
 }
 
-// Update will update all columns of the entity.(如果包含租户ID,则会自动添加租户ID作为更新条件)
-func (b *BaseMapper[T]) Update(entities ...T) error {
+// Update 更新所有列.(如果包含租户ID,则会自动添加租户ID作为更新条件)
+// useTenantId 是否使用租户ID作为更新条件
+// 如果需要更新部分列,请使用PartialUpdate
+func (b *BaseMapper[T]) Update(useTenantId bool, entities ...T) error {
 	b.init()
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
 	return b.UpdateTx(func(tx *Tx) (err error) {
-		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
+		return tx.RunCurrentPrepareNamed(map[string]any{
+			"Meta":         b.meta,
+			"UserTenantId": useTenantId,
+		}, func(stmt *sqlx.NamedStmt) error {
 			for _, entity := range entities {
 				if _, err = stmt.Exec(entity); err != nil {
 					return err
@@ -228,22 +244,58 @@ func (b *BaseMapper[T]) Update(entities ...T) error {
 	})
 }
 
-// UpdateById will update all columns of the entity.(不会自动添加租户ID作为更新条件)
-func (b *BaseMapper[T]) UpdateById(entities ...T) error {
+// PartialUpdate 更新指定列.(如果包含租户ID,则会自动添加租户ID作为更新条件)
+// useTenantId 是否使用租户ID作为更新条件
+// specifiedField 指定需要更新的列,如果为空则自动从实体中获取"非空"列进行更新（指定更新列名时，使用字段名而不是列名）
+// entities 实体列表
+func (b *BaseMapper[T]) PartialUpdate(useTenantId bool, specifiedField []string, entities ...T) error {
 	b.init()
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
-	return b.UpdateByIdTx(func(tx *Tx) (err error) {
-		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
-			for _, entity := range entities {
-				if _, err = stmt.Exec(entity); err != nil {
-					return err
-				}
-			}
-			return nil
+	var excludes []string
+	if b.meta.TenantKey != nil {
+		excludes = append(excludes, b.meta.TenantKey.Name)
+	}
+	if b.meta.PrimaryKey != nil {
+		excludes = append(excludes, b.meta.PrimaryKey.Name)
+	}
+	var metaCols []*ColumnMeta
+	if len(specifiedField) > 0 {
+		metaCols = Search(b.meta.Columns, func(col *ColumnMeta) bool {
+			return Contains(specifiedField, func(s string) bool {
+				return col.Name == s
+			})
 		})
+	}
+	return b.PartialUpdateTx(func(tx *Tx) (err error) {
+		for _, entity := range entities {
+			if specifiedField == nil {
+				data := ToMap(entity, excludes...)
+				metaCols = Search(b.meta.Columns, func(col *ColumnMeta) bool {
+					_, ok := data[col.Name]
+					return ok
+				})
+			}
+			if err = tx.RunCurrentPrepareNamed(map[string]any{
+				"Meta":        b.meta,
+				"Columns":     metaCols,
+				"UseTenantId": useTenantId,
+			}, func(stmt *sqlx.NamedStmt) (stErr error) {
+				_, stErr = stmt.Exec(entity)
+				return
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
+}
+
+// AutoPartialUpdate 更新指定列.(不会自动添加租户ID作为更新条件)
+// useTenantId 是否使用租户ID作为更新条件
+func (b *BaseMapper[T]) AutoPartialUpdate(useTenantId bool, entities ...T) error {
+	return b.PartialUpdate(useTenantId, nil, entities...)
 }
 
 // DeleteById will set the is_deleted flag to true(if is_deleted column exists) or really delete record(if is_deleted column not exists).
@@ -388,7 +440,7 @@ func Each[T any](lst []T, fn func(int, T) bool) {
 		}
 	}
 }
-func ToMap(v any) map[string]any {
+func ToMap(v any, excludes ...string) map[string]any {
 	if v == nil {
 		return nil
 	}
@@ -406,6 +458,11 @@ func ToMap(v any) map[string]any {
 	typ := reflect.TypeOf(vv.Interface())
 	for idx := 0; idx < vv.NumField(); idx++ {
 		f := vv.Field(idx)
+		if Contains(excludes, func(exclude string) bool {
+			return exclude == typ.Field(idx).Name || exclude == LowerCase(typ.Field(idx).Name)
+		}) {
+			continue
+		}
 		ft := typ.Field(idx)
 		if ft.IsExported() && !f.IsZero() {
 			if ft.Anonymous {
@@ -419,4 +476,21 @@ func ToMap(v any) map[string]any {
 	}
 
 	return result
+}
+
+func Search[T any](lst []T, fn func(T) bool) (result []T) {
+	for _, itm := range lst {
+		if fn(itm) {
+			result = append(result, itm)
+		}
+	}
+	return
+}
+func Contains[T any](lst []T, fn func(T) bool) bool {
+	for _, itm := range lst {
+		if fn(itm) {
+			return true
+		}
+	}
+	return false
 }

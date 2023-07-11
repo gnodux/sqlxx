@@ -7,6 +7,10 @@ package sqlxx
 
 import "unicode"
 
+var (
+	NameFunc = LowerCase
+)
+
 func LowerCase(s string) string {
 	if s == "" {
 		return s

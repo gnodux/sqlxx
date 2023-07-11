@@ -1,5 +1,5 @@
 SELECT {{allColumns .Meta.Columns}}
-FROM `{{.Meta.TableName}}`
+FROM {{n .Meta.TableName}}
 {{namedWhere .Where}}
 {{orderBy .OrderBy}}
 {{- if .Limit -}}

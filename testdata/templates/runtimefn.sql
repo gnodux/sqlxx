@@ -1,0 +1,1 @@
+SELECT {{call .current "1" "2" "3"}} FROM a

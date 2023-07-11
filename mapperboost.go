@@ -104,9 +104,9 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 
 			var tplList []string
 			if sqlTpl == "" {
-				sqlTpl = LowerCase(field.Name) + ".sql"
-				pkgPath := LowerCase(v.Type().PkgPath())
-				name := LowerCase(v.Type().Name())
+				sqlTpl = NameFunc(field.Name) + ".sql"
+				pkgPath := NameFunc(v.Type().PkgPath())
+				name := NameFunc(v.Type().Name())
 				tplList = []string{
 					filepath.Join(pkgPath, name, sqlTpl),
 					filepath.Join(filepath.Base(pkgPath), name, sqlTpl),

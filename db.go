@@ -193,15 +193,15 @@ func (d *DB) BatchTpl(ctx context.Context, opts *sql.TxOptions, tpl string, fn f
 	return
 }
 
-func Open(driverName, dataSourceName string) (*DB, error) {
-	return OpenWith(StdFactory, driverName, dataSourceName)
+func Open(dataSourceName string) (*DB, error) {
+	return OpenWith(StdFactory, dataSourceName)
 }
 
-func OpenWith(f *Factory, driver, datasource string) (*DB, error) {
-	db, err := sqlx.Open(driver, datasource)
+func OpenWith(f *Factory, datasource string) (*DB, error) {
+	db, err := sqlx.Open(f.driver.Name, datasource)
 	if err != nil {
 		return nil, err
 	}
-	db.MapperFunc(LowerCase)
+	db.MapperFunc(NameFunc)
 	return &DB{DB: db, m: f}, err
 }

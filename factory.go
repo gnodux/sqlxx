@@ -51,6 +51,7 @@ var (
 type DBConstructor func() (*DB, error)
 
 type Factory struct {
+	driver       *Driver
 	name         string
 	dbs          map[string]*DB
 	constructors map[string]DBConstructor
@@ -58,19 +59,23 @@ type Factory struct {
 	template     *template.Template
 }
 
-func NewFactory(name string) *Factory {
+func NewFactoryWithDriver(name string, driver *Driver) *Factory {
 	f := &Factory{
 		name:         name,
+		driver:       driver,
 		dbs:          map[string]*DB{},
 		constructors: map[string]DBConstructor{},
 		lock:         &sync.RWMutex{},
-		template:     template.New("sql").Funcs(DefaultFuncMap),
+		template:     template.New("sql").Funcs(MakeFuncMap(driver)),
 	}
 	err := f.ParseTemplateFS(builtinsql.Builtin, "**/*.sql")
 	if err != nil {
 		panic(err)
 	}
 	return f
+}
+func NewFactory(name string) *Factory {
+	return NewFactoryWithDriver(name, DefaultDriver)
 }
 
 func (m *Factory) SetTemplate(tpl *template.Template) {
@@ -158,7 +163,7 @@ func (m *Factory) Get(name string) (*DB, error) {
 				var err error
 				conn, err = loader()
 				conn.SetManager(m)
-				conn.MapperFunc(LowerCase)
+				conn.MapperFunc(NameFunc)
 				if err != nil {
 					return err
 				} else {
@@ -192,8 +197,8 @@ func (m *Factory) CreateAndSet(name string, fn DBConstructor) (*DB, error) {
 	m.Set(name, d)
 	return d, nil
 }
-func (m *Factory) Open(name, driver, dsn string) (*DB, error) {
-	db, err := OpenWith(m, driver, dsn)
+func (m *Factory) Open(name, dsn string) (*DB, error) {
+	db, err := OpenWith(m, dsn)
 	if err != nil {
 		return nil, err
 	}

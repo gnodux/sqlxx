@@ -1,7 +1,6 @@
-
 DELETE
-FROM `{{.TableName}}`
-WHERE `{{.PrimaryKey.ColumnName}}` = :{{.PrimaryKey.ColumnName}}
+FROM {{n .TableName}}
+WHERE {{n .PrimaryKey.ColumnName}} = :{{.PrimaryKey.ColumnName}}
 {{if .TenantKey}}
-AND `{{.TenantKey.ColumnName}}`=:{{.TenantKey.ColumnName}}
+AND {{n .TenantKey.ColumnName}}=:{{.TenantKey.ColumnName}}
 {{end}}

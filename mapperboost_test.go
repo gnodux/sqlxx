@@ -184,7 +184,7 @@ func TestMapper(t *testing.T) {
 }
 
 func TestParseTemplate(t *testing.T) {
-	tpl := template.New("sql").Funcs(DefaultFuncMap)
+	tpl := template.New("sql").Funcs(MakeFuncMap(MySQL))
 	_, err := tpl.ParseFS(os.DirFS("./testdata/"), "**/*.sql")
 	assert.NoError(t, err)
 	_, err = tpl.New("test/job").Parse("{{.Name}}:{{.Cat}}({{list .tags}})")
