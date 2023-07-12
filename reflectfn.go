@@ -10,26 +10,22 @@ import (
 	"reflect"
 )
 
-func getTpl(m *Factory, templateList []string) string {
+func getTpl(d *DB, templateList []string) string {
 	if len(templateList) == 1 {
 		return templateList[0]
 	} else {
 		for _, tpl := range templateList {
-			if m.template.Lookup(tpl) != nil {
+			if d.template.Lookup(tpl) != nil {
 				return tpl
 			}
 		}
 	}
 	return ""
 }
-func SelectWith(m *Factory, p reflect.Type, db string, templateList []string, args []any) (any, error) {
+func SelectWith(p reflect.Type, db *DB, templateList []string, args []any) (any, error) {
 	list := reflect.New(reflect.SliceOf(p))
-	d, err := m.Get(db)
-	if err != nil {
-		return nil, err
-	}
-	tpl := getTpl(m, templateList)
-	err = d.SelectTpl(list.Interface(), tpl, args...)
+	tpl := getTpl(db, templateList)
+	err := db.SelectTpl(list.Interface(), tpl, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -37,30 +33,22 @@ func SelectWith(m *Factory, p reflect.Type, db string, templateList []string, ar
 	return list.Elem().Interface(), err
 }
 
-func NamedSelectWith(m *Factory, p reflect.Type, db string, templateList []string, arg any) (any, error) {
+func NamedSelectWith(p reflect.Type, db *DB, templateList []string, arg any) (any, error) {
 	list := reflect.New(reflect.SliceOf(p))
-	d, err := m.Get(db)
-	if err != nil {
-		return nil, err
-	}
-	tpl := getTpl(m, templateList)
-	err = d.NamedSelectTpl(list.Interface(), tpl, arg)
+	tpl := getTpl(db, templateList)
+	err := db.NamedSelectTpl(list.Interface(), tpl, arg)
 	return list.Elem().Interface(), err
 }
 
-func NamedGetWith(m *Factory, p reflect.Type, db string, templateList []string, arg any) (any, error) {
+func NamedGetWith(p reflect.Type, db *DB, templateList []string, arg any) (any, error) {
 	var o reflect.Value
 	if p.Kind() == reflect.Pointer {
 		o = reflect.New(p.Elem())
 	} else {
 		o = reflect.New(p)
 	}
-	d, err := m.Get(db)
-	if err != nil {
-		return nil, err
-	}
-	tpl := getTpl(m, templateList)
-	n, err := d.PrepareTplNamed(tpl, arg)
+	tpl := getTpl(db, templateList)
+	n, err := db.PrepareTplNamed(tpl, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -75,19 +63,15 @@ func NamedGetWith(m *Factory, p reflect.Type, db string, templateList []string, 
 	}
 }
 
-func GetWith(m *Factory, p reflect.Type, db string, templateList []string, args []any) (any, error) {
+func GetWith(p reflect.Type, db *DB, templateList []string, args []any) (any, error) {
 	var o reflect.Value
 	if p.Kind() == reflect.Pointer {
 		o = reflect.New(p.Elem())
 	} else {
 		o = reflect.New(p)
 	}
-	d, err := m.Get(db)
-	if err != nil {
-		return nil, err
-	}
-	tpl := getTpl(m, templateList)
-	n, err := d.PrepareTpl(tpl, args)
+	tpl := getTpl(db, templateList)
+	n, err := db.PrepareTpl(tpl, args)
 	if err != nil {
 		return nil, err
 	}

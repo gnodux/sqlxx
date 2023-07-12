@@ -25,12 +25,9 @@ func TestMain(m *testing.M) {
 	logrus.SetLevel(logrus.TraceLevel)
 	encoder.SetIndent("", "  ")
 	SetConstructor(DefaultName, func() (*DB, error) {
-		return Open("xxtest:xxtest@tcp(localhost)/sqlxx?charset=utf8&parseTime=true&multiStatements=true")
+		return Open("mysql", "xxtest:xxtest@tcp(localhost)/sqlxx?charset=utf8&parseTime=true&multiStatements=true")
 	})
-	err := ParseTemplateFS(os.DirFS("./testdata"), "examples/*.sql", "initialize/*.sql", "my_mapper/*.sql")
-	if err != nil {
-		panic(err)
-	}
+	SetTemplateFS(os.DirFS("./testdata"), "examples/*.sql", "initialize/*.sql", "my_mapper/*.sql")
 	initData()
 	m.Run()
 }

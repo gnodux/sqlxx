@@ -36,7 +36,8 @@ var (
 	TxFuncType        = reflect.TypeOf(TxFunc(nil))
 )
 
-func getTags(field reflect.StructField) (ds, tpl string, level sql.IsolationLevel, readOnly bool) {
+// parseExtTags 解析字段的自定义tag，包含：数据源、sql模版（或inline sql）、事务级别、事务是否只读等
+func parseExtTags(field reflect.StructField) (ds, tpl string, level sql.IsolationLevel, readOnly bool) {
 	ds = field.Tag.Get(TagDS)
 	tpl = field.Tag.Get(TagSQL)
 	txtLevel := field.Tag.Get(TagTx)
@@ -64,7 +65,14 @@ func getTags(field reflect.StructField) (ds, tpl string, level sql.IsolationLeve
 	}
 	return
 }
-func BoostMapper(dest interface{}, m *Factory, ds string) error {
+
+// BoostMapper 对mapper的Field进行wrap处理、绑定
+// change: 2023-7-12 修改绑定策略，从延迟绑定修改到boost时绑定，动态打开数据库的需求不高，且模版延迟绑定和获取数据库需要使用到锁，对性能有一定影响
+func BoostMapper(dest interface{}, factory *Factory, ds string) error {
+	currentDb, err := factory.Get(ds)
+	if err != nil {
+		return err
+	}
 	v := reflect.ValueOf(dest)
 	if v.Type().Kind() != reflect.Ptr {
 		return errors.New("mapper must a pointer ")
@@ -75,12 +83,12 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 	v = v.Elem()
 	for idx := 0; idx < v.Type().NumField(); idx++ {
 		field := v.Type().Field(idx)
-		fieldDs, sqlTpl, isoLevel, readonly := getTags(field)
+		fieldDs, sqlTpl, isoLevel, readonly := parseExtTags(field)
 		if fieldDs == "" {
 			fieldDs = ds
 		}
 		if field.IsExported() && field.Type.Kind() == reflect.Struct {
-			if err := BoostMapper(v.Field(idx).Addr().Interface(), m, fieldDs); err != nil {
+			if err := BoostMapper(v.Field(idx).Addr().Interface(), factory, fieldDs); err != nil {
 				return err
 			}
 			continue
@@ -90,11 +98,11 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 			fv := v.Field(idx)
 			if fv.CanSet() && field.Type.AssignableTo(ManagerType) {
 				//value is manager,Set a Factory
-				fv.Set(reflect.ValueOf(m))
+				fv.Set(reflect.ValueOf(factory))
 			}
 			if fv.CanSet() && field.Type.AssignableTo(DBType) {
 				//value is *DB,set datasource
-				if db, err := m.Get(ds); err != nil {
+				if db, err := factory.Get(ds); err != nil {
 					return err
 				} else {
 					fv.Set(reflect.ValueOf(db))
@@ -104,7 +112,7 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 
 			var tplList []string
 			if sqlTpl == "" {
-				sqlTpl = NameFunc(field.Name) + ".sql"
+				sqlTpl = NameFunc(field.Name) + sqlSuffix
 				pkgPath := NameFunc(v.Type().PkgPath())
 				name := NameFunc(v.Type().Name())
 				tplList = []string{
@@ -114,30 +122,40 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 					sqlTpl,
 				}
 			} else {
+				if !strings.HasSuffix(sqlTpl, sqlSuffix) {
+					//对inline(在注解中使用的SQL进行解析,模版名称替换成为完整的包名称
+					tplName := filepath.Join(NameFunc(v.Type().PkgPath()), NameFunc(v.Type().Name()),
+						NameFunc(field.Name)+sqlSuffix)
+					if _, err = currentDb.ParseTemplate(tplName, sqlTpl); err != nil {
+						return err
+					}
+					sqlTpl = tplName
+				}
 				tplList = append(tplList, sqlTpl)
 			}
 			switch field.Type {
 			case ExecFuncType:
-				v.Field(idx).Set(reflect.ValueOf(ExecFnWith(m, fieldDs, sqlTpl)))
+				v.Field(idx).Set(reflect.ValueOf(ExecFnWith(currentDb, sqlTpl)))
 			case NamedExecFuncType:
-				v.Field(idx).Set(reflect.ValueOf(NamedExecFnWith(m, fieldDs, sqlTpl)))
+				v.Field(idx).Set(reflect.ValueOf(NamedExecFnWith(currentDb, sqlTpl)))
 			case TxFuncType:
-				v.Field(idx).Set(reflect.ValueOf(TxFnWith(m, fieldDs, sqlTpl, &sql.TxOptions{
+				v.Field(idx).Set(reflect.ValueOf(TxFnWith(currentDb, sqlTpl, &sql.TxOptions{
 					Isolation: isoLevel,
 					ReadOnly:  readonly,
 				})))
 			default:
 				name := field.Type.Name()
-				//去除泛型参数
+				//begin: 判断是否泛型，并去除泛型参数
 				quotaIdx := strings.Index(name, "[")
 				if quotaIdx > 0 {
 					name = name[:quotaIdx]
 				}
+				//end
 				var fnVal func([]reflect.Value) []reflect.Value
 				switch name {
 				case "SelectFunc":
 					fnVal = func(values []reflect.Value) []reflect.Value {
-						ret, err := SelectWith(m, field.Type.Out(0).Elem(), fieldDs, tplList, values[0].Interface().([]any))
+						ret, err := SelectWith(field.Type.Out(0).Elem(), currentDb, tplList, values[0].Interface().([]any))
 						return []reflect.Value{
 							valueOrZero(ret, field.Type.Out(0)),
 							valueOrZero(err, field.Type.Out(1)),
@@ -145,7 +163,7 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 					}
 				case "NamedSelectFunc":
 					fnVal = func(values []reflect.Value) []reflect.Value {
-						ret, err := NamedSelectWith(m, field.Type.Out(0).Elem(), fieldDs, tplList, values[0].Interface())
+						ret, err := NamedSelectWith(field.Type.Out(0).Elem(), currentDb, tplList, values[0].Interface())
 						return []reflect.Value{
 							valueOrZero(ret, field.Type.Out(0)),
 							valueOrZero(err, field.Type.Out(1)),
@@ -153,7 +171,7 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 					}
 				case "GetFunc":
 					fnVal = func(values []reflect.Value) []reflect.Value {
-						ret, err := GetWith(m, field.Type.Out(0), fieldDs, tplList, values[0].Interface().([]any))
+						ret, err := GetWith(field.Type.Out(0), currentDb, tplList, values[0].Interface().([]any))
 						return []reflect.Value{
 							valueOrZero(ret, field.Type.Out(0)),
 							valueOrZero(err, field.Type.Out(1)),
@@ -161,7 +179,7 @@ func BoostMapper(dest interface{}, m *Factory, ds string) error {
 					}
 				case "NamedGetFunc":
 					fnVal = func(values []reflect.Value) []reflect.Value {
-						ret, err := NamedGetWith(m, field.Type.Out(0), fieldDs, tplList, values[0].Interface())
+						ret, err := NamedGetWith(field.Type.Out(0), currentDb, tplList, values[0].Interface())
 						return []reflect.Value{
 							valueOrZero(ret, field.Type.Out(0)),
 							valueOrZero(err, field.Type.Out(1)),

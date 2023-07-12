@@ -334,7 +334,6 @@ func (b *BaseMapper[T]) EraseById(tenantId any, ids ...any) error {
 				}); err != nil {
 					return err
 				}
-				return nil
 			}
 			return nil
 		})

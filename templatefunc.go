@@ -20,25 +20,25 @@ const (
 
 func MakeFuncMap(driver *Driver) template.FuncMap {
 	return template.FuncMap{
-		"where":      func(v any) string { return where(v, driver) },
-		"namedWhere": func(v any) string { return namedWhere(v, driver) },
-		"nwhere":     func(v any) string { return namedWhere(v, driver) },
-		"asc":        func(cols []string) string { return orderByMap(expr.Asc(cols...), driver) },
-		"desc":       func(cols []string) string { return orderByMap(expr.Desc(cols...), driver) },
-		"v":          func(v any) string { return sqlValue(v, driver) },
+		"where":      func(v any) string { return where(driver, v) },
+		"namedWhere": func(v any) string { return namedWhere(driver, v) },
+		"nwhere":     func(v any) string { return namedWhere(driver, v) },
+		"asc":        func(cols []string) string { return orderByMap(driver, expr.Asc(cols...)) },
+		"desc":       func(cols []string) string { return orderByMap(driver, expr.Desc(cols...)) },
+		"v":          func(v any) string { return sqlValue(driver, v) },
 		"n":          driver.SQLNameFunc,
 		"sqlName":    driver.SQLNameFunc,
-		"list":       func(v []any) string { return sqlValues(v, driver) },
-		"columns":    func(v []*ColumnMeta) string { return columns(v, driver) },
-		"allColumns": func(v []*ColumnMeta) string { return allColumns(v, driver) },
-		"args":       func(v []*ColumnMeta) string { return args(v, driver) },
+		"list":       func(v []any) string { return sqlValues(driver, v) },
+		"columns":    func(v []*ColumnMeta) string { return columns(driver, v) },
+		"allColumns": func(v []*ColumnMeta) string { return allColumns(driver, v) },
+		"args":       func(v []*ColumnMeta) string { return args(driver, v) },
 		"setArgs":    func(v []*ColumnMeta) string { return sets(v, driver) },
-		"orderBy":    func(v map[string]string) string { return orderByMap(v, driver) },
+		"orderBy":    func(v map[string]string) string { return orderByMap(driver, v) },
 	}
 }
 
-func namedWhere(v any, driver *Driver) string {
-	return whereWith(v, " "+driver.Keyword("AND")+" ", true, driver)
+func namedWhere(driver *Driver, v any) string {
+	return whereWith(driver, v, driver.KeywordWithSpace("AND"), true)
 }
 
 //func setValue(v any, newV any) any {
@@ -50,12 +50,12 @@ func namedWhere(v any, driver *Driver) string {
 //	return nil
 //}
 
-func orderByMap(order map[string]string, driver *Driver) string {
+func orderByMap(driver *Driver, order map[string]string) string {
 	if len(order) == 0 {
 		return ""
 	}
 	sb := strings.Builder{}
-	pre := " ORDER BY "
+	pre := driver.KeywordWithSpace("ORDER BY")
 	for k, v := range order {
 		sb.WriteString(pre)
 		sb.WriteString(driver.SQLNameFunc(driver.NameFunc(k)))
@@ -69,7 +69,7 @@ func orderByMap(order map[string]string, driver *Driver) string {
 	return sb.String()
 }
 
-func columns(cols []*ColumnMeta, driver *Driver) string {
+func columns(driver *Driver, cols []*ColumnMeta) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -82,7 +82,7 @@ func columns(cols []*ColumnMeta, driver *Driver) string {
 	}
 	return sb.String()
 }
-func allColumns(cols []*ColumnMeta, driver *Driver) string {
+func allColumns(driver *Driver, cols []*ColumnMeta) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -93,7 +93,7 @@ func allColumns(cols []*ColumnMeta, driver *Driver) string {
 	return sb.String()
 }
 
-func args(cols []*ColumnMeta, driver *Driver) string {
+func args(driver *Driver, cols []*ColumnMeta) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -124,19 +124,19 @@ func sets(cols []*ColumnMeta, driver *Driver) string {
 	return sb.String()
 }
 
-func where(v any, driver *Driver) string {
-	return whereWith(v, " "+driver.Keyword("AND")+" ", false, driver)
+func where(driver *Driver, v any) string {
+	return whereWith(driver, v, driver.KeywordWithSpace("AND"), false)
 }
-func whereOr(v any, driver *Driver) string {
-	return whereWith(v, " "+driver.Keyword("OR")+" ", false, driver)
+func whereOr(driver *Driver, v any) string {
+	return whereWith(driver, v, driver.KeywordWithSpace("OR"), false)
 }
-func whereWith(arg any, op string, named bool, driver *Driver) string {
+func whereWith(driver *Driver, arg any, op string, named bool) string {
 	argv := reflect.ValueOf(arg)
 	if arg == nil {
 		return ""
 	}
 	if op == "" {
-		op = " " + driver.Keyword("AND") + " "
+		op = driver.KeywordWithSpace("AND")
 	}
 	if op[0] != ' ' {
 		op = " " + op + " "
@@ -145,15 +145,16 @@ func whereWith(arg any, op string, named bool, driver *Driver) string {
 	buf := strings.Builder{}
 	switch reflect.TypeOf(argv.Interface()).Kind() {
 	case reflect.Map:
-		comma := " " + driver.Keyword("WHERE") + " "
+		comma := driver.KeywordWithSpace("WHERE")
 		for _, k := range argv.MapKeys() {
 			buf.WriteString(comma)
 			buf.WriteString(driver.SQLNameFunc(driver.NameFunc(k.String())))
 			value := argv.MapIndex(k)
 			switch reflect.TypeOf(value.Interface()).Kind() {
 			case reflect.String:
-				if strings.ContainsAny(value.Interface().(string), "%.?") {
-					buf.WriteString(" " + driver.Keyword("LIKE") + " ")
+				const stringMatchers = "%.?"
+				if strings.ContainsAny(value.Interface().(string), stringMatchers) {
+					buf.WriteString(driver.KeywordWithSpace("LIKE"))
 				} else {
 					buf.WriteString("=")
 				}
@@ -163,12 +164,12 @@ func whereWith(arg any, op string, named bool, driver *Driver) string {
 			if named {
 				buf.WriteString(fmt.Sprintf(":%s", k.String()))
 			} else {
-				buf.WriteString(sqlValue(value.Interface(), driver))
+				buf.WriteString(sqlValue(driver, value.Interface()))
 			}
 			comma = op
 		}
 	case reflect.Struct:
-		comma := " " + driver.Keyword("WHERE") + " "
+		comma := driver.KeywordWithSpace("WHERE")
 		for i := 0; i < argv.NumField(); i++ {
 			if argv.Field(i).IsZero() {
 				continue
@@ -176,7 +177,7 @@ func whereWith(arg any, op string, named bool, driver *Driver) string {
 			buf.WriteString(comma)
 			buf.WriteString(driver.SQLNameFunc(driver.NameFunc(argv.Type().Field(i).Name)))
 			buf.WriteString("=")
-			buf.WriteString(sqlValue(argv.Field(i).Interface(), driver))
+			buf.WriteString(sqlValue(driver, argv.Field(i).Interface()))
 			comma = op
 		}
 
@@ -187,7 +188,7 @@ func whereWith(arg any, op string, named bool, driver *Driver) string {
 }
 
 // sqlValues list of sqlValues
-func sqlValues(v any, driver *Driver) string {
+func sqlValues(driver *Driver, v any) string {
 	value := reflect.ValueOf(v)
 	comma := ""
 	sb := &strings.Builder{}
@@ -195,17 +196,17 @@ func sqlValues(v any, driver *Driver) string {
 	case reflect.Slice, reflect.Array:
 		for idx := 0; idx < value.Len(); idx++ {
 			sb.WriteString(comma)
-			sb.WriteString(sqlValue(value.Index(idx).Interface(), driver))
+			sb.WriteString(sqlValue(driver, value.Index(idx).Interface()))
 			comma = ","
 		}
 	default:
-		sb.WriteString(sqlValue(value.Interface(), driver))
+		sb.WriteString(sqlValue(driver, value.Interface()))
 	}
 	return sb.String()
 }
 
 // value sql value converter(sql inject process)
-func sqlValue(arg any, driver *Driver) string {
+func sqlValue(driver *Driver, arg any) string {
 	var ret string
 	switch a := arg.(type) {
 	case nil:

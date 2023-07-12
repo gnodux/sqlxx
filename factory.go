@@ -6,13 +6,9 @@
 package sqlxx
 
 import (
-	"crypto/md5"
 	"fmt"
-	"github.com/gnodux/sqlxx/builtinsql"
 	"io/fs"
-	"strings"
 	"sync"
-	"text/template"
 )
 
 var (
@@ -32,23 +28,31 @@ var (
 
 	OpenDB = StdFactory.Open
 
+	//SetTemplateFS set sql template from filesystem
+	SetTemplateFS = StdFactory.SetTemplateFS
+
+	//ClearTemplateFS clear sql template from filesystem
+	ClearTemplateFS = StdFactory.ClearTemplateFS
+
 	//Shutdown manager and close all db
 	Shutdown = StdFactory.Shutdown
 
-	//SetTemplate set sql template
-	SetTemplate = StdFactory.SetTemplate
+	////SetTemplate set sql template
+	//SetTemplate = StdFactory.SetTemplate
 
 	//ParseTemplateFS set sql template from filesystem
-	ParseTemplateFS = StdFactory.ParseTemplateFS
+	//ParseTemplateFS = StdFactory.ParseTemplateFS
 
 	//ParseTemplate create a new template
-	ParseTemplate = StdFactory.ParseTemplate
-
-	//ParseSQL parse sql from template
-	ParseSQL = StdFactory.ParseSQL
+	//ParseTemplate = StdFactory.ParseTemplate
 )
 
 type DBConstructor func() (*DB, error)
+
+type TplFS struct {
+	FS       fs.FS
+	Patterns []string
+}
 
 type Factory struct {
 	driver       *Driver
@@ -56,7 +60,7 @@ type Factory struct {
 	dbs          map[string]*DB
 	constructors map[string]DBConstructor
 	lock         *sync.RWMutex
-	template     *template.Template
+	templateFS   []*TplFS
 }
 
 func NewFactoryWithDriver(name string, driver *Driver) *Factory {
@@ -66,84 +70,98 @@ func NewFactoryWithDriver(name string, driver *Driver) *Factory {
 		dbs:          map[string]*DB{},
 		constructors: map[string]DBConstructor{},
 		lock:         &sync.RWMutex{},
-		template:     template.New("sql").Funcs(MakeFuncMap(driver)),
+		//template:     template.New("sql").Funcs(MakeFuncMap(driver)),
 	}
-	err := f.ParseTemplateFS(builtinsql.Builtin, "**/*.sql")
-	if err != nil {
-		panic(err)
-	}
+	//err := f.ParseTemplateFS(builtinsql.Builtin, "**/*.sql")
+	//if err != nil {
+	//	panic(err)
+	//}
 	return f
 }
 func NewFactory(name string) *Factory {
 	return NewFactoryWithDriver(name, DefaultDriver)
 }
 
-func (m *Factory) SetTemplate(tpl *template.Template) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	m.template = tpl
+func (m *Factory) SetTemplateFS(f fs.FS, patterns ...string) {
+	m.templateFS = append(m.templateFS, &TplFS{
+		FS:       f,
+		Patterns: patterns,
+	})
 }
-func (m *Factory) Template() *template.Template {
-	return m.template
+func (m *Factory) ClearTemplateFS() {
+	m.templateFS = nil
 }
 
-// ParseTemplateFS parse template from filesystem。
-// 为了保留目录结构，没有直接使用template的ParseFS(template中的ParseFS方法不会保留路径名称)
-func (m *Factory) ParseTemplateFS(f fs.FS, patterns ...string) error {
-	log.Info("parse template from filesystem: ", f, " with patterns:", patterns)
-	for _, pattern := range patterns {
-		matches, err := fs.Glob(f, pattern)
-		if err != nil {
-			return err
-		}
-		for _, mf := range matches {
-			buf, err := fs.ReadFile(f, mf)
-			if err != nil {
-				return err
-			}
-			log.Info("parse sql:", mf)
-			if _, err = m.template.New(strings.ReplaceAll(mf, "\\", "/")).Parse(string(buf)); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-func (m *Factory) ParseTemplate(name string, tpl string) (*template.Template, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	t, err := m.template.New(name).Parse(tpl)
-	return t, err
-}
-func (m *Factory) ParseSQL(sqlOrTpl string, args any) (query string, err error) {
-	if !strings.HasSuffix(sqlOrTpl, ".sql") {
-		if strings.Contains(sqlOrTpl, "{{") && strings.Contains(sqlOrTpl, "}}") {
-			name := fmt.Sprintf("%x", md5.Sum([]byte(sqlOrTpl)))
-			t := m.template.Lookup(name)
-			if t == nil {
-				t, err = m.ParseTemplate(name, sqlOrTpl)
-			}
-			if err != nil {
-				return
-			}
-			sb := &strings.Builder{}
-			err = t.Execute(sb, args)
-			if err == nil {
-				query = sb.String()
-			}
-
-		} else {
-			query = sqlOrTpl
-		}
-	} else {
-		sb := &strings.Builder{}
-		err = m.template.ExecuteTemplate(sb, sqlOrTpl, args)
-		if err == nil {
-			query = sb.String()
-		}
-	}
-	return
-}
+//	func (m *Factory) SetTemplate(tpl *template.Template) {
+//		m.lock.Lock()
+//		defer m.lock.Unlock()
+//		m.template = tpl
+//	}
+//
+//	func (m *Factory) Template() *template.Template {
+//		return m.template
+//	}
+//
+// // ParseTemplateFS parse template from filesystem。
+// // 为了保留目录结构，没有直接使用template的ParseFS(template中的ParseFS方法不会保留路径名称)
+//
+//	func (m *Factory) ParseTemplateFS(f fs.FS, patterns ...string) error {
+//		log.Info("parse template from filesystem: ", f, " with patterns:", patterns)
+//		for _, pattern := range patterns {
+//			matches, err := fs.Glob(f, pattern)
+//			if err != nil {
+//				return err
+//			}
+//			for _, mf := range matches {
+//				buf, err := fs.ReadFile(f, mf)
+//				if err != nil {
+//					return err
+//				}
+//				log.Info("parse sql:", mf)
+//				if _, err = m.template.New(strings.ReplaceAll(mf, "\\", "/")).Parse(string(buf)); err != nil {
+//					return err
+//				}
+//			}
+//		}
+//		return nil
+//	}
+//
+//	func (m *Factory) ParseTemplate(name string, tpl string) (*template.Template, error) {
+//		m.lock.Lock()
+//		defer m.lock.Unlock()
+//		t, err := m.template.New(name).Parse(tpl)
+//		return t, err
+//	}
+//
+//	func (m *Factory) ParseSQL(sqlOrTpl string, args any) (query string, err error) {
+//		if !strings.HasSuffix(sqlOrTpl, ".sql") {
+//			if strings.Contains(sqlOrTpl, "{{") && strings.Contains(sqlOrTpl, "}}") {
+//				name := fmt.Sprintf("%x", md5.Sum([]byte(sqlOrTpl)))
+//				t := m.template.Lookup(name)
+//				if t == nil {
+//					t, err = m.ParseTemplate(name, sqlOrTpl)
+//				}
+//				if err != nil {
+//					return
+//				}
+//				sb := &strings.Builder{}
+//				err = t.Execute(sb, args)
+//				if err == nil {
+//					query = sb.String()
+//				}
+//
+//			} else {
+//				query = sqlOrTpl
+//			}
+//		} else {
+//			sb := &strings.Builder{}
+//			err = m.template.ExecuteTemplate(sb, sqlOrTpl, args)
+//			if err == nil {
+//				query = sb.String()
+//			}
+//		}
+//		return
+//	}
 func (m *Factory) Get(name string) (*DB, error) {
 	conn, ok := func() (*DB, bool) {
 		m.lock.RLock()
@@ -197,8 +215,8 @@ func (m *Factory) CreateAndSet(name string, fn DBConstructor) (*DB, error) {
 	m.Set(name, d)
 	return d, nil
 }
-func (m *Factory) Open(name, dsn string) (*DB, error) {
-	db, err := OpenWith(m, dsn)
+func (m *Factory) Open(name, driverName, dsn string) (*DB, error) {
+	db, err := OpenWith(m, Drivers[driverName], dsn)
 	if err != nil {
 		return nil, err
 	}

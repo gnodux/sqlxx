@@ -13,18 +13,18 @@ import (
 // Tx transaction wrapper
 type Tx struct {
 	*sqlx.Tx
-	m   *Factory
+	db  *DB
 	tpl string
 }
 
-func (t *Tx) DefaultTpl() string {
+func (t *Tx) Tpl() string {
 	return t.tpl
 }
 func (t *Tx) Parse(tplName string, args any) (string, error) {
-	if t.m == nil {
-		return "", ErrNoManager
+	if t.db == nil {
+		return "", ErrNilDB
 	}
-	return t.m.ParseSQL(tplName, args)
+	return t.db.Parse(tplName, args)
 }
 
 // ParseAndPrepareNamed use tplName to parse and prepare named statement
@@ -89,20 +89,16 @@ func (t *Tx) Preparex(query string) (*sqlx.Stmt, error) {
 	return t.Tx.Preparex(query)
 }
 
-// NamedQueryTpl use tpl to query named statement
+// NamedExecTpl  use tpl to query named statement
 func (t *Tx) NamedExecTpl(tplName string, arg interface{}) (sql.Result, error) {
 	query, err := t.Parse(tplName, arg)
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("named exec query:", query, arg)
+	log.Debug("named exec tpl:", query, arg)
 	return t.NamedExec(query, arg)
 }
 
-// NamedExecCurrent use current tpl to exec named statement
-func (t *Tx) NamedExecCurrent(arg interface{}) (sql.Result, error) {
-	return t.NamedExecTpl(t.tpl, arg)
-}
 func (t *Tx) ExecTpl(tplName string, args ...interface{}) (sql.Result, error) {
 	query, err := t.Parse(tplName, args)
 	if err != nil {
@@ -117,10 +113,8 @@ func (t *Tx) ExecCurrent(args ...interface{}) (sql.Result, error) {
 	return t.ExecTpl(t.tpl, args...)
 }
 
-func (t *Tx) ExecWith(args ...interface{}) (sql.Result, error) {
-	return t.ExecTpl(t.tpl, args...)
-}
-func (t *Tx) NamedExecWith(arg interface{}) (sql.Result, error) {
+// NamedExecCurrent use current tpl to exec named statement
+func (t *Tx) NamedExecCurrent(arg interface{}) (sql.Result, error) {
 	return t.NamedExecTpl(t.tpl, arg)
 }
 
@@ -133,13 +127,10 @@ func (t *Tx) GetTpl(dest any, tpl string, args ...any) error {
 	return t.Get(dest, query, args...)
 }
 
-func NewTxWith(tx *sqlx.Tx, m *Factory, tpl string) *Tx {
+func NewTxWith(tx *sqlx.Tx, d *DB, tpl string) *Tx {
 	return &Tx{
 		Tx:  tx,
-		m:   m,
+		db:  d,
 		tpl: tpl,
 	}
-}
-func NewTx(tx *sqlx.Tx, m *Factory) *Tx {
-	return NewTxWith(tx, m, "")
 }

@@ -17,7 +17,6 @@ const (
 
 type SelectFunc[T any] func(args ...any) ([]T, error)
 type NamedSelectFunc[T any] func(arg any) ([]T, error)
-
 type GetFunc[T any] func(args ...any) (T, error)
 type NamedGetFunc[T any] func(arg any) (T, error)
 type ExecFunc func(args ...any) (sql.Result, error)
@@ -40,13 +39,9 @@ func SelectFn[T any](db, tpl string) SelectFunc[T] {
 	return SelectFnWith[T](StdFactory, db, tpl)
 }
 
-func TxFnWith(m *Factory, ds, tpl string, opts *sql.TxOptions) TxFunc {
+func TxFnWith(db *DB, tpl string, opts *sql.TxOptions) TxFunc {
 	return func(fn func(tx *Tx) error) error {
-		if db, err := m.Get(ds); err != nil {
-			return err
-		} else {
-			return db.BatchTpl(context.Background(), opts, tpl, fn)
-		}
+		return db.BatchTpl(context.Background(), opts, tpl, fn)
 	}
 }
 
@@ -108,29 +103,22 @@ func NamedGetFn[T any](db, tpl string) NamedGetFunc[T] {
 	return NamedGetFnWith[T](StdFactory, db, tpl)
 }
 
-func NamedExecFnWith(m *Factory, db, tpl string) NamedExecFunc {
+func NamedExecFnWith(db *DB, tpl string) NamedExecFunc {
 	return func(arg any) (sql.Result, error) {
-		d, err := m.Get(db)
-		if err != nil {
-			return nil, err
-		}
-		return d.NamedExecTpl(tpl, arg)
+		return db.NamedExecTpl(tpl, arg)
 	}
 }
 
-func NamedExecFn(db, tpl string) NamedExecFunc {
-	return NamedExecFnWith(StdFactory, db, tpl)
-}
+//func NamedExecFn(db, tpl string) NamedExecFunc {
+//	return NamedExecFnWith(StdFactory, db, tpl)
+//}
 
-func ExecFnWith(m *Factory, db, tpl string) ExecFunc {
+func ExecFnWith(db *DB, tpl string) ExecFunc {
 	return func(args ...any) (sql.Result, error) {
-		d, err := m.Get(db)
-		if err != nil {
-			return nil, err
-		}
-		return d.ExecTpl(tpl, args...)
+		return db.ExecTpl(tpl, args...)
 	}
 }
-func ExecFn(db, tpl string) ExecFunc {
-	return ExecFnWith(StdFactory, db, tpl)
-}
+
+//func ExecFn(db, tpl string) ExecFunc {
+//	return ExecFnWith(StdFactory, db, tpl)
+//}

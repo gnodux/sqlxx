@@ -31,6 +31,12 @@ func (d *Driver) Keyword(name string) string {
 	}
 	return name
 }
+func (d *Driver) KeywordWith(prefix string, kw string, suffix string) string {
+	return prefix + d.Keyword(kw) + suffix
+}
+func (d *Driver) KeywordWithSpace(kw string) string {
+	return d.KeywordWith(" ", kw, " ")
+}
 
 var (
 
@@ -55,4 +61,8 @@ var (
 	}
 
 	DefaultDriver = MySQL
+	Drivers       = map[string]*Driver{
+		"mysql": MySQL,
+		"mssql": SQLServer,
+	}
 )

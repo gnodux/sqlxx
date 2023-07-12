@@ -173,6 +173,14 @@ func TestBaseMapper_Struct(t *testing.T) {
 				return users, err
 			},
 		}, {
+			Name: "SimpleExpr query",
+			fn: func() (any, error) {
+				result, err := mapper.SimpleQuery(expr.Simple(User{Name: "user_%"}).Desc("role").Limit(5).Offset(0))
+				assert.NotEmptyf(t, result, "result is empty")
+				assert.GreaterOrEqual(t, 5, len(result), "result not match limit")
+				return result, err
+			},
+		}, {
 			Name: "SimpleExpr select with count",
 			fn: func() (any, error) {
 				result, total, err := mapper.SimpleQueryWithCount(expr.Simple(User{Name: "user_%"}).Desc("role").Limit(100).Offset(0))
