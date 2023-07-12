@@ -7,10 +7,8 @@ package sqlxx
 
 import (
 	"context"
-	"crypto/md5"
 	"database/sql"
 	"errors"
-	"fmt"
 	"github.com/cookieY/sqlx"
 	"github.com/gnodux/sqlxx/builtinsql"
 	"io/fs"
@@ -37,7 +35,7 @@ func (d *DB) SetManager(m *Factory) {
 	d.m = m
 }
 
-//func (d *DB) Parse(tplName string, args any) (string, error) {
+//func (d *DB) ParseSQL(tplName string, args any) (string, error) {
 //	if d == nil {
 //		return "", ErrNilDB
 //	}
@@ -51,7 +49,7 @@ func (d *DB) PrepareTpl(tplName string, args any) (*sqlx.Stmt, error) {
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.Parse(tplName, args)
+	query, err := d.ParseSQL(tplName, args)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +74,7 @@ func (d *DB) PrepareTplNamed(tplName string, args any) (*sqlx.NamedStmt, error) 
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.Parse(tplName, args)
+	query, err := d.ParseSQL(tplName, args)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +97,7 @@ func (d *DB) SelectTpl(dest interface{}, tplName string, args ...any) error {
 	if d == nil {
 		return ErrNilDB
 	}
-	query, err := d.Parse(tplName, args)
+	query, err := d.ParseSQL(tplName, args)
 	if err != nil {
 		return err
 	}
@@ -145,7 +143,7 @@ func (d *DB) NamedExecTpl(tplName string, arg interface{}) (sql.Result, error) {
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.Parse(tplName, arg)
+	query, err := d.ParseSQL(tplName, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +155,7 @@ func (d *DB) ExecTpl(tplName string, args ...interface{}) (sql.Result, error) {
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.Parse(tplName, args)
+	query, err := d.ParseSQL(tplName, args)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +166,7 @@ func (d *DB) NamedQueryTpl(tplName string, arg interface{}) (*sqlx.Rows, error) 
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.Parse(tplName, arg)
+	query, err := d.ParseSQL(tplName, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -240,34 +238,37 @@ func (d *DB) ParseTemplate(name string, tpl string) (*template.Template, error) 
 	t, err := d.template.New(name).Parse(tpl)
 	return t, err
 }
-func (d *DB) Parse(sqlOrTpl string, args any) (query string, err error) {
-	if !strings.HasSuffix(sqlOrTpl, sqlSuffix) {
-		if strings.Contains(sqlOrTpl, "{{") && strings.Contains(sqlOrTpl, "}}") {
-			name := fmt.Sprintf("%x", md5.Sum([]byte(sqlOrTpl)))
-			t := d.template.Lookup(name)
-			if t == nil {
-				t, err = d.ParseTemplate(name, sqlOrTpl)
-			}
-			if err != nil {
-				return
-			}
-			sb := &strings.Builder{}
-			err = t.Execute(sb, args)
-			if err == nil {
-				query = sb.String()
-			}
 
-		} else {
-			query = sqlOrTpl
-		}
-
-	} else {
-		sb := &strings.Builder{}
-		err = d.template.ExecuteTemplate(sb, sqlOrTpl, args)
-		if err == nil {
-			query = sb.String()
-		}
+// ParseSQL parse sql from template
+// 2023-7-12: 由于template的Parse方法会将{{}}中的内容当作变量，所以不再使用template.Parse方法,由BoostMapper中预先解析，减小运行时性能消耗和锁定
+func (d *DB) ParseSQL(sqlOrTpl string, args any) (query string, err error) {
+	//if !strings.HasSuffix(sqlOrTpl, sqlSuffix) {
+	//	if strings.Contains(sqlOrTpl, "{{") && strings.Contains(sqlOrTpl, "}}") {
+	//		name := fmt.Sprintf("%x", md5.Sum([]byte(sqlOrTpl)))
+	//		t := d.template.Lookup(name)
+	//		if t == nil {
+	//			t, err = d.ParseTemplate(name, sqlOrTpl)
+	//		}
+	//		if err != nil {
+	//			return
+	//		}
+	//		sb := &strings.Builder{}
+	//		err = t.Execute(sb, args)
+	//		if err == nil {
+	//			query = sb.String()
+	//		}
+	//
+	//	} else {
+	//		query = sqlOrTpl
+	//	}
+	//
+	//} else {
+	sb := &strings.Builder{}
+	err = d.template.ExecuteTemplate(sb, sqlOrTpl, args)
+	if err == nil {
+		query = sb.String()
 	}
+	//}
 	log.Trace("parse sql:", sqlOrTpl, "=>", query, " with args:", args)
 	return
 }

@@ -198,7 +198,7 @@ func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err er
 		argList []any
 		stmt    *sqlx.Stmt
 	)
-	if query, err = b.Parse("builtin/list_by_id.sql", b.meta); err != nil {
+	if query, err = b.ParseSQL("builtin/list_by_id.sql", b.meta); err != nil {
 		return
 	}
 	if b.meta.TenantKey != nil {

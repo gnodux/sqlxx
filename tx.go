@@ -24,7 +24,7 @@ func (t *Tx) Parse(tplName string, args any) (string, error) {
 	if t.db == nil {
 		return "", ErrNilDB
 	}
-	return t.db.Parse(tplName, args)
+	return t.db.ParseSQL(tplName, args)
 }
 
 // ParseAndPrepareNamed use tplName to parse and prepare named statement

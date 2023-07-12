@@ -118,7 +118,7 @@ func (m *Factory) ClearTemplateFS() {
 //					return err
 //				}
 //				log.Info("parse sql:", mf)
-//				if _, err = m.template.New(strings.ReplaceAll(mf, "\\", "/")).Parse(string(buf)); err != nil {
+//				if _, err = m.template.New(strings.ReplaceAll(mf, "\\", "/")).ParseSQL(string(buf)); err != nil {
 //					return err
 //				}
 //			}
@@ -129,7 +129,7 @@ func (m *Factory) ClearTemplateFS() {
 //	func (m *Factory) ParseTemplate(name string, tpl string) (*template.Template, error) {
 //		m.lock.Lock()
 //		defer m.lock.Unlock()
-//		t, err := m.template.New(name).Parse(tpl)
+//		t, err := m.template.New(name).ParseSQL(tpl)
 //		return t, err
 //	}
 //

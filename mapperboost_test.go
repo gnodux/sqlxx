@@ -151,7 +151,7 @@ func TestMapper(t *testing.T) {
 					})
 				})
 				if len(ids) > 0 {
-					query, err := d1.Parse("examples/delete_user_by_ids.sql", nil)
+					query, err := d1.ParseSQL("examples/delete_user_by_ids.sql", nil)
 					if err != nil {
 						return nil, err
 					}
