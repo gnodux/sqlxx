@@ -10,6 +10,11 @@ import (
 	"github.com/gnodux/sqlxx/expr/keywords"
 )
 
+var (
+	Count    = &FuncExpr{Name: keywords.Count, Args: []Expr{Raw(1)}}
+	CountAll = &FuncExpr{Name: keywords.Count, Args: []Expr{Raw("*")}}
+)
+
 type SelectExpr struct {
 	Columns     Expr
 	FromExpr    Expr
@@ -35,7 +40,7 @@ func (s *SelectExpr) WithoutCount() *SelectExpr {
 }
 
 func (s *SelectExpr) BuildCountExpr() *SelectExpr {
-	return Select(&FuncExpr{Name: keywords.Count, Args: []Expr{Raw(1)}}).
+	return Select().
 		From(s.FromExpr).
 		Where(s.WhereExpr).GroupBy(s.GroupByExpr).Having(s.HavingExpr)
 }

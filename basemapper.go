@@ -283,9 +283,24 @@ func (b *BaseMapper[T]) Select(builders ...expr.FilterFn) (result []T, total int
 //	return
 //}
 
-//	func (b *BaseMapper[T]) SelectByExample(entity T, orderBy map[string]string, limit, offset int) ([]T, error) {
-//		return b.SelectBy(ToMap(entity), orderBy, limit, offset)
-//	}
+func (b *BaseMapper[T]) CountBy(where map[string]any, fns ...expr.FilterFn) (total int64, err error) {
+	b.init()
+	queryExpr := expr.Select(expr.Count).From(b.meta)
+	var whereColumns []expr.Expr
+	for name, val := range where {
+		col := b.Meta().Column(name)
+		if col != nil {
+			whereColumns = append(whereColumns, expr.Eq(col, expr.Var(name, val)))
+		}
+	}
+	fns = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...))}, fns...)
+	err = b.GetExpr(&total, queryExpr, fns...)
+	return
+}
+func (b *BaseMapper[T]) CountByExample(entity T, filters ...expr.FilterFn) (total int64, err error) {
+	return b.CountBy(ToMap(entity), filters...)
+}
+
 func (b *BaseMapper[T]) SelectByExample(entity T, builders ...expr.FilterFn) ([]T, int64, error) {
 	valMap := ToMap(entity)
 	var whereColumns []expr.Expr

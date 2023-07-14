@@ -258,9 +258,12 @@ func (d *DB) ExecExpr(exp expr.Expr) (sql.Result, error) {
 	}
 }
 
-func (d *DB) GetExpr(dest interface{}, exp expr.Expr) error {
+func (d *DB) GetExpr(dest interface{}, exp expr.Expr, filters ...expr.FilterFn) error {
 	if d == nil {
 		return ErrNilDB
+	}
+	for _, filter := range filters {
+		filter(exp)
 	}
 	buff := expr.NewTracedBuffer(d.driver)
 	if d.driver.SupportNamed {
