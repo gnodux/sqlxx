@@ -293,7 +293,9 @@ func (b *BaseMapper[T]) CountBy(where map[string]any, fns ...expr.FilterFn) (tot
 			whereColumns = append(whereColumns, expr.Eq(col, expr.Var(name, val)))
 		}
 	}
-	fns = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...))}, fns...)
+	if len(whereColumns) > 0 {
+		fns = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...))}, fns...)
+	}
 	err = b.GetExpr(&total, queryExpr, fns...)
 	return
 }
@@ -310,7 +312,9 @@ func (b *BaseMapper[T]) SelectByExample(entity T, builders ...expr.FilterFn) ([]
 			whereColumns = append(whereColumns, expr.Eq(col, expr.Var(name, val)))
 		}
 	}
-	builders = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...))}, builders...)
+	if len(whereColumns) > 0 {
+		builders = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...))}, builders...)
+	}
 	return b.Select(builders...)
 }
 
@@ -345,12 +349,17 @@ func (b *BaseMapper[T]) UpdateByExample(newValue T, example T, builders ...expr.
 			updateColumns = append(updateColumns, expr.Eq(col, expr.Var(name, val)))
 		}
 	}
-	builders = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...)),
-		expr.Set(updateColumns...)}, builders...)
+	builders = append([]expr.FilterFn{expr.Set(updateColumns...)}, builders...)
+	if len(whereColumns) > 0 {
+		builders = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...))}, builders...)
+	}
 	return b.UpdateBy(builders...)
 }
 func (b *BaseMapper[T]) DeleteBy(builders ...expr.DeleteExprFn) (effect int64, err error) {
 	b.init()
+	if len(builders) == 0 {
+		return 0, errors.New("delete by must have one builder")
+	}
 	deleteExpr := expr.Delete(b.meta)
 	for _, fn := range builders {
 		fn(deleteExpr)
@@ -372,7 +381,9 @@ func (b *BaseMapper[T]) DeleteByExample(example T, builders ...expr.DeleteExprFn
 			whereColumns = append(whereColumns, expr.Eq(col, expr.Var(name, val)))
 		}
 	}
-	builders = append([]expr.DeleteExprFn{expr.UseDeleteCondition(expr.And(whereColumns...))}, builders...)
+	if len(whereColumns) > 0 {
+		builders = append([]expr.DeleteExprFn{expr.UseDeleteCondition(expr.And(whereColumns...))}, builders...)
+	}
 	return b.DeleteBy(builders...)
 }
 func setPrimaryKey(entity any, meta *Entity, result sql.Result) error {
