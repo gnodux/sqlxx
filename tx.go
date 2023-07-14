@@ -8,6 +8,7 @@ package sqlxx
 import (
 	"database/sql"
 	"github.com/cookieY/sqlx"
+	"github.com/gnodux/sqlxx/expr"
 )
 
 // Tx transaction wrapper
@@ -25,6 +26,95 @@ func (t *Tx) Parse(tplName string, args any) (string, error) {
 		return "", ErrNilDB
 	}
 	return t.db.ParseSQL(tplName, args)
+}
+
+// SelectExpr 使用表达式进行查询
+func (t *Tx) SelectExpr(dest interface{}, exp expr.Expr) error {
+	if t == nil {
+		return ErrNilDB
+	}
+	buff := expr.NewTracedBuffer(t.db.driver)
+	if t.db.driver.SupportNamed {
+		query, namedArgs, err := buff.BuildNamed(exp)
+		if err != nil {
+			return err
+		}
+		return t.NamedSelect(dest, query, namedArgs)
+	} else {
+		query, args, err := buff.Build(exp)
+		if err != nil {
+			return err
+		}
+		return t.Select(dest, query, args...)
+	}
+}
+
+func (t *Tx) NamedSelect(dest interface{}, sql string, arg any) (err error) {
+	if t == nil {
+		return ErrNilDB
+	}
+	var named *sqlx.NamedStmt
+	named, err = t.PrepareNamed(sql)
+	if err != nil {
+		return err
+	}
+	defer func(named *sqlx.NamedStmt) {
+		err = named.Close()
+
+	}(named)
+	log.Debug("named select:", named.QueryString, arg)
+	return named.Select(dest, arg)
+}
+
+// ExecExpr 使用表达式进行执行
+func (t *Tx) ExecExpr(exp expr.Expr) (sql.Result, error) {
+	if t == nil {
+		return nil, ErrNilDB
+	}
+	buff := expr.NewTracedBuffer(t.db.driver)
+	if t.db.driver.SupportNamed {
+		query, namedArgs, err := buff.BuildNamed(exp)
+		if err != nil {
+			return nil, err
+		}
+		return t.NamedExec(query, namedArgs)
+	} else {
+		query, args, err := buff.Build(exp)
+		if err != nil {
+			return nil, err
+		}
+		return t.Exec(query, args...)
+	}
+}
+
+func (t *Tx) GetExpr(dest interface{}, exp expr.Expr) error {
+	if t == nil {
+		return ErrNilDB
+	}
+	buff := expr.NewTracedBuffer(t.db.driver)
+	if t.db.driver.SupportNamed {
+		query, namedArgs, err := buff.BuildNamed(exp)
+		if err != nil {
+			return err
+		}
+		return t.NamedGet(dest, query, namedArgs)
+	} else {
+		query, args, err := buff.Build(exp)
+		if err != nil {
+			return err
+		}
+		return t.Get(dest, query, args...)
+	}
+}
+func (t *Tx) NamedGet(dest interface{}, query string, arg interface{}) error {
+	stmt, err := t.PrepareNamed(query)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = stmt.Close()
+	}()
+	return stmt.Get(dest, arg)
 }
 
 // ParseAndPrepareNamed use tplName to parse and prepare named statement

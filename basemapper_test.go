@@ -8,6 +8,8 @@ package sqlxx
 import (
 	"fmt"
 	"github.com/gnodux/sqlxx/expr"
+	"github.com/gnodux/sqlxx/meta"
+	"github.com/gnodux/sqlxx/utils"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"reflect"
@@ -137,58 +139,58 @@ func TestBaseMapper_Struct(t *testing.T) {
 				}
 				return user, nil
 			},
-		}, {
-			Name: "select by name",
-			fn: func() (any, error) {
-				users, err := mapper.SelectBy(map[string]any{
-					"Name": "user_2%",
-				}, expr.Desc("Name", "Role"), 100, 10)
-				return users, err
-			},
-		}, {
-			Name: "count by name",
-			fn: func() (any, error) {
-				total, err := mapper.CountBy(map[string]any{
-					"Name": "user_2%",
-				})
-				return total, err
-			},
 		},
+		//{
+		//	Name: "select by name",
+		//	fn: func() (any, error) {
+		//		users, err := mapper.SelectBy(map[string]any{
+		//			"Name": "user_2%",
+		//		}, expr.SimpleDesc("Name", "Role"), 100, 10)
+		//		return users, err
+		//	},
+		//},
+		//{
+		//	Name: "count by name",
+		//	fn: func() (any, error) {
+		//		total, err := mapper.CountBy(map[string]any{
+		//			"Name": "user_2%",
+		//		})
+		//		return total, err
+		//	},
+		//},
 		{
 			Name: "select by example",
 			fn: func() (any, error) {
-				users, err := mapper.SelectByExample(User{
+				users, _, err := mapper.SelectByExample(User{
 					Address: "%57",
 					Name:    "user_%",
-				}, expr.Desc("role"), 100, 0)
+				}, expr.Limit(10))
 				return users, err
 			},
-		}, {
-			Name: "count by example",
+		},
+		{
+			Name: "update by example",
 			fn: func() (any, error) {
-				users, err := mapper.CountByExample(User{
-					Address: "%57",
-					Name:    "user_%",
+				count, err := mapper.UpdateByExample(User{
+					Address: "Test address ...	",
+					Name:    "MyUserName",
+				}, User{
+					ID:       1,
+					TenantID: 100102,
 				})
-				return users, err
+				return count, err
 			},
 		}, {
-			Name: "SimpleExpr query",
+			Name: "delete by example",
 			fn: func() (any, error) {
-				result, err := mapper.SimpleQuery(expr.Simple(User{Name: "user_%"}).Desc("role").Limit(5).Offset(0))
-				assert.NotEmptyf(t, result, "result is empty")
-				assert.GreaterOrEqual(t, 5, len(result), "result not match limit")
-				return result, err
+				count, err := mapper.DeleteByExample(User{
+					ID:       1000,
+					TenantID: 888123,
+				})
+				return count, err
 			},
-		}, {
-			Name: "SimpleExpr select with count",
-			fn: func() (any, error) {
-				result, total, err := mapper.SimpleQueryWithCount(expr.Simple(User{Name: "user_%"}).Desc("role").Limit(100).Offset(0))
-				assert.Greater(t, total, 0)
-				t.Log("total", total)
-				return result, err
-			},
-		}, {
+		},
+		{
 			Name: "Partial update user",
 			fn: func() (any, error) {
 				u := User{
@@ -213,6 +215,18 @@ func TestBaseMapper_Struct(t *testing.T) {
 				}
 				err = mapper.DeleteById(u.TenantID, u.ID)
 				return nil, err
+			},
+		}, {
+			Name: "query test 1",
+			fn: func() (any, error) {
+				result, total, err := mapper.Select(expr.SelectFn(func(e *expr.SelectExpr) {
+					e.Where(
+						expr.And(
+							expr.Eq(expr.Name("name"),
+								expr.Var("name", "test user1")))).Limit(10).Offset(0)
+				}), expr.UseCount)
+				t.Log("total", total)
+				return result, err
 			},
 		},
 	}
@@ -259,9 +273,10 @@ func TestExtMapper(t *testing.T) {
 func TestBaseMapper_Duck(t *testing.T) {
 	m, err := NewMapper[UserMapper](DefaultName)
 	assert.NoError(t, err)
-	users, err := m.User.SelectByExample(User{
+	users, _, err := m.User.SelectByExample(User{
 		Name: "user_1%",
-	}, expr.Desc("role"), 100, 0)
+		Role: "admin",
+	}, expr.Limit(1), expr.AutoFuzzy)
 	assert.NoError(t, err)
 	encoder.Encode(users)
 }
@@ -283,7 +298,7 @@ type MyUser struct {
 
 func Test_listColumns(t *testing.T) {
 	my := MyUser{}
-	cols := listColumns(reflect.TypeOf(my))
+	cols := meta.ListColumns(reflect.TypeOf(my))
 	err := encoder.Encode(cols)
 	if err != nil {
 		t.Fatal(err)
@@ -313,6 +328,6 @@ func Test_ToMap(t *testing.T) {
 		Nation: "China",
 		Phone:  "123456789",
 	}
-	assert.Equal(t, m, ToMap(ue))
-	encoder.Encode(ToMap(ue))
+	assert.Equal(t, m, utils.ToMap(ue))
+	encoder.Encode(utils.ToMap(ue))
 }

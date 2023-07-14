@@ -61,27 +61,28 @@ func NamedSelectFn[T any](db, tpl string) NamedSelectFunc[T] {
 	return NamedSelectFnWith[T](StdFactory, db, tpl)
 }
 
-func GetFnWith[T any](m *Factory, db, tpl string) GetFunc[T] {
-	return func(args ...any) (v T, err error) {
-		var d *DB
-		d, err = m.Get(db)
-		if err != nil {
-			return
-		}
-		n, err := d.PrepareTpl(tpl, args)
-		if err != nil {
-			return v, err
-		}
-		defer func(n *sqlx.Stmt) {
-			err = n.Close()
-		}(n)
-		err = n.Get(&v, args)
-		return v, err
-	}
-}
-func GetFn[T any](db, tpl string) GetFunc[T] {
-	return GetFnWith[T](StdFactory, db, tpl)
-}
+//func GetFnWith[T any](m *Factory, db, tpl string) GetFunc[T] {
+//	return func(args ...any) (v T, err error) {
+//		var d *DB
+//		d, err = m.Get(db)
+//		if err != nil {
+//			return
+//		}
+//		n, err := d.PrepareTpl(tpl, args)
+//		if err != nil {
+//			return v, err
+//		}
+//		defer func(n *sqlx.Stmt) {
+//			err = n.Close()
+//		}(n)
+//		err = n.Get(&v, args)
+//		return v, err
+//	}
+//}
+
+//	func GetFn[T any](db, tpl string) GetFunc[T] {
+//		return GetFnWith[T](StdFactory, db, tpl)
+//	}
 func NamedGetFnWith[T any](m *Factory, db, tpl string) NamedGetFunc[T] {
 	return func(arg any) (v T, err error) {
 		var d *DB
@@ -99,9 +100,10 @@ func NamedGetFnWith[T any](m *Factory, db, tpl string) NamedGetFunc[T] {
 		return v, err
 	}
 }
-func NamedGetFn[T any](db, tpl string) NamedGetFunc[T] {
-	return NamedGetFnWith[T](StdFactory, db, tpl)
-}
+
+//func NamedGetFn[T any](db, tpl string) NamedGetFunc[T] {
+//	return NamedGetFnWith[T](StdFactory, db, tpl)
+//}
 
 func NamedExecFnWith(db *DB, tpl string) NamedExecFunc {
 	return func(arg any) (sql.Result, error) {

@@ -7,6 +7,7 @@ package sqlxx
 
 import (
 	"fmt"
+	"github.com/gnodux/sqlxx/dialect"
 	"io/fs"
 	"sync"
 )
@@ -55,7 +56,7 @@ type TplFS struct {
 }
 
 type Factory struct {
-	driver       *Driver
+	driver       *dialect.Driver
 	name         string
 	dbs          map[string]*DB
 	constructors map[string]DBConstructor
@@ -63,7 +64,7 @@ type Factory struct {
 	templateFS   []*TplFS
 }
 
-func NewFactoryWithDriver(name string, driver *Driver) *Factory {
+func NewFactoryWithDriver(name string, driver *dialect.Driver) *Factory {
 	f := &Factory{
 		name:         name,
 		driver:       driver,

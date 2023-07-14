@@ -3,15 +3,17 @@
  * all right reserved by gnodux<gnodux@gmail.com>
  */
 
-package sqlxx
+package dialect
 
 type Driver struct {
 	//驱动名称（mysql/mssql）等
 	Name string
 	//是否使用命名参数
-	NamedStatement bool
+	SupportNamed bool
 	//命名参数前缀
 	NamedPrefix string
+	//参数占位符
+	PlaceHolder string
 	//SQLNameFunc SQL名称转换函数
 	SQLNameFunc func(any) string
 	//NameFunc 字段名称转换函数
@@ -37,32 +39,3 @@ func (d *Driver) KeywordWith(prefix string, kw string, suffix string) string {
 func (d *Driver) KeywordWithSpace(kw string) string {
 	return d.KeywordWith(" ", kw, " ")
 }
-
-var (
-
-	//MySQL MySQL驱动
-	MySQL = &Driver{
-		Name:           "mysql",
-		NamedStatement: true,
-		NamedPrefix:    ":",
-		DateFormat:     "'2006-01-02 15:04:05'",
-		SQLNameFunc:    MakeNameFunc("`", "`"),
-		NameFunc:       LowerCase,
-	}
-
-	//SQLServer SQLServer驱动
-	SQLServer = &Driver{
-		Name:           "mssql",
-		NamedStatement: true,
-		NamedPrefix:    "@",
-		DateFormat:     "'2006-01-02 15:04:05'",
-		SQLNameFunc:    MakeNameFunc("[", "]"),
-		NameFunc:       LowerCase,
-	}
-
-	DefaultDriver = MySQL
-	Drivers       = map[string]*Driver{
-		"mysql": MySQL,
-		"mssql": SQLServer,
-	}
-)

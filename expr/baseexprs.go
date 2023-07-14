@@ -1,0 +1,380 @@
+/*
+ * Copyright (c) 2023.
+ * all right reserved by gnodux<gnodux@gmail.com>
+ */
+
+package expr
+
+import (
+	"fmt"
+	"github.com/gnodux/sqlxx/expr/keywords"
+	"github.com/gnodux/sqlxx/utils"
+	"time"
+)
+
+var (
+	All  = &RawExpr{Value: "*"}
+	NULL = &ConstantExpr{Value: nil}
+	//start short cut for expr
+
+	//N = Name
+	N = Name
+	//V = Value
+	V = Var
+	//R = Raw
+	R = Raw
+	F = Fn
+	C = Const
+)
+
+type RawExpr struct {
+	Value any
+}
+
+func (r *RawExpr) Format(buffer *TracedBuffer) {
+	switch vv := r.Value.(type) {
+	case nil:
+		buffer.AppendString(buffer.Keyword("NULL"))
+	case string:
+		buffer.AppendString(vv)
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		buffer.AppendString(fmt.Sprintf("%d", vv))
+	case float32, float64:
+		buffer.AppendString(fmt.Sprintf("%f", vv))
+	case time.Time:
+		buffer.AppendString(vv.Format(buffer.DateFormat))
+	case bool:
+		if vv {
+			buffer.AppendString(buffer.Keyword("TRUE"))
+		} else {
+			buffer.AppendString(buffer.Keyword("FALSE"))
+		}
+	case []byte:
+		buffer.AppendString(string(vv))
+	default:
+		buffer.AppendString(fmt.Sprintf("%v", r.Value))
+	}
+}
+
+type ConstantExpr struct {
+	Value any
+}
+
+func (c *ConstantExpr) Format(buffer *TracedBuffer) {
+	switch vv := c.Value.(type) {
+	case nil:
+		buffer.AppendString(buffer.Keyword("NULL"))
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		buffer.AppendString(fmt.Sprintf("%d", vv))
+	case float32, float64:
+		buffer.AppendString(fmt.Sprintf("%f", vv))
+	case time.Time:
+		buffer.AppendString(vv.Format(buffer.DateFormat))
+	case bool:
+		if vv {
+			buffer.AppendString(buffer.Keyword("TRUE"))
+		} else {
+			buffer.AppendString(buffer.Keyword("FALSE"))
+		}
+	case []byte:
+		buffer.AppendString("'").AppendString(utils.Escape(string(vv))).AppendString("'")
+	case string:
+		buffer.AppendString("'").AppendString(utils.Escape(vv)).AppendString("'")
+	default:
+		buffer.AppendString("'").AppendString(fmt.Sprintf("%v", c.Value)).AppendString("'")
+	}
+}
+
+type NameExpr struct {
+	Qualifier []string
+	Name      string
+}
+
+func (n *NameExpr) Format(buffer *TracedBuffer) {
+	if len(n.Qualifier) > 0 {
+		for _, qualifier := range n.Qualifier {
+			if len(qualifier) == 0 {
+				buffer.AppendString(buffer.SQLNameFunc(qualifier)).AppendString(".")
+			}
+		}
+		buffer.AppendString(buffer.SQLNameFunc(n.Qualifier))
+		buffer.AppendString(".")
+	}
+	buffer.AppendString(buffer.SQLNameFunc(n.Name))
+}
+
+func (n *NameExpr) Eq(value any) *BinaryExpr {
+	return Eq(n, value)
+}
+func (n *NameExpr) Ne(value any) *BinaryExpr {
+	return Ne(n, value)
+}
+func (n *NameExpr) Gt(value any) *BinaryExpr {
+	return Gt(n, value)
+}
+func (n *NameExpr) Ge(value any) *BinaryExpr {
+	return Ge(n, value)
+}
+func (n *NameExpr) Lt(value any) *BinaryExpr {
+	return Lt(n, value)
+}
+func (n *NameExpr) Le(value any) *BinaryExpr {
+	return Le(n, value)
+}
+func (n *NameExpr) Like(value any) *BinaryExpr {
+	return Like(n, value)
+}
+
+type AroundExpr struct {
+	Prefix Expr
+	Expr   Expr
+	Suffix Expr
+}
+
+func (s *AroundExpr) Format(buffer *TracedBuffer) {
+	if s.Prefix != nil {
+		s.Prefix.Format(buffer)
+		buffer.AppendString(" ")
+	}
+
+	s.Expr.Format(buffer)
+	if s.Suffix != nil {
+		buffer.AppendString(" ")
+		s.Suffix.Format(buffer)
+	}
+}
+
+type ValueExpr struct {
+	Name  string
+	Value any
+}
+
+func (n *ValueExpr) Format(buffer *TracedBuffer) {
+	if buffer.NamedVar {
+		buffer.AppendNamedArg(n.Name, n.Value)
+		buffer.AppendString(buffer.NamedPrefix)
+		buffer.AppendString(n.Name)
+	} else {
+		buffer.AppendArg(n.Value)
+		buffer.AppendString(buffer.PlaceHolder)
+	}
+}
+
+type AliasExpr struct {
+	Expr  Expr
+	Alias string
+}
+
+func (a *AliasExpr) Format(buffer *TracedBuffer) {
+	a.Expr.Format(buffer)
+	buffer.AppendKeywordWithSpace(keywords.AS)
+	buffer.AppendString(buffer.SQLNameFunc(a.Alias))
+}
+
+type BinaryExpr struct {
+	Left     Expr
+	Operator string
+	Space    string
+	Right    Expr
+}
+
+func (b *BinaryExpr) Format(buffer *TracedBuffer) {
+	b.Left.Format(buffer)
+	buffer.AppendString(b.Space)
+	buffer.AppendString(b.Operator)
+	buffer.AppendString(b.Space)
+	b.Right.Format(buffer)
+}
+
+type UnaryExpr struct {
+	Operator string
+	Expr     Expr
+}
+
+func (u *UnaryExpr) Format(buffer *TracedBuffer) {
+	buffer.AppendString(u.Operator)
+	buffer.AppendString(" ")
+	u.Expr.Format(buffer)
+}
+
+type ListExpr struct {
+	Prefix      Expr
+	Separator   string
+	Placeholder string
+	ExprList    []Expr
+	Suffix      Expr
+}
+
+func (l *ListExpr) Format(buffer *TracedBuffer) {
+	if l.Prefix != nil {
+		l.Prefix.Format(buffer)
+		buffer.AppendString(" ")
+	}
+	for idx, expr := range l.ExprList {
+		if idx > 0 {
+			buffer.AppendString(l.Placeholder).AppendString(l.Separator).AppendString(l.Placeholder)
+		}
+		expr.Format(buffer)
+	}
+	if l.Suffix != nil {
+		buffer.AppendString(" ")
+		l.Suffix.Format(buffer)
+	}
+}
+
+type FuncExpr struct {
+	Name string
+	Args []Expr
+}
+
+func (f *FuncExpr) Format(buffer *TracedBuffer) {
+	buffer.AppendString(buffer.Keyword(f.Name))
+	buffer.AppendString("(")
+	for idx, arg := range f.Args {
+		if idx > 0 {
+			buffer.AppendString(",")
+		}
+		arg.Format(buffer)
+	}
+	buffer.AppendString(")")
+}
+
+type BetweenExpr struct {
+	Left  Expr
+	Start Expr
+	End   Expr
+}
+
+func (b *BetweenExpr) Format(buffer *TracedBuffer) {
+	b.Left.Format(buffer)
+	buffer.AppendString(buffer.KeywordWithSpace(keywords.Between))
+	b.Start.Format(buffer)
+	buffer.AppendString(buffer.KeywordWithSpace(keywords.And))
+	b.End.Format(buffer)
+}
+
+type ParenExpr struct {
+	Expr Expr
+}
+
+func (p *ParenExpr) Format(buffer *TracedBuffer) {
+	buffer.AppendString("(")
+	p.Expr.Format(buffer)
+	buffer.AppendString(")")
+}
+
+func And(exprList ...Expr) *ListExpr {
+	return &ListExpr{Separator: keywords.And, Placeholder: keywords.Space, ExprList: exprList}
+}
+
+// Paren 括号
+func Paren(expr Expr) *ParenExpr {
+	return &ParenExpr{Expr: expr}
+}
+func Or(exprList ...Expr) *ListExpr {
+	return &ListExpr{Separator: keywords.Or, Placeholder: keywords.Space, ExprList: exprList}
+}
+
+// Name 字段名、表名、别名等
+// 例如：Name("id"):mysql 驱动下则会被格式化为： `id`
+// 例如：如果有限定名称Name("id", "user")，则会被格式化为： `user`.`id`，如果有多个限定名称Name("id", "user", "t")，则会被格式化为： `user`.`t`.`id`
+func Name(name string, qualifiers ...string) *NameExpr {
+	return &NameExpr{Name: name, Qualifier: qualifiers}
+}
+
+func Var(name string, value any) *ValueExpr {
+	return &ValueExpr{Name: name, Value: value}
+}
+func Const(value any) *ConstantExpr {
+	return &ConstantExpr{Value: value}
+}
+func List(operator string, exprList ...Expr) *ListExpr {
+	return &ListExpr{Separator: operator, ExprList: exprList}
+}
+
+func Unary(operator string, expr Expr) *UnaryExpr {
+	return &UnaryExpr{Operator: operator, Expr: expr}
+}
+
+func Binary(left Expr, op string, right any) *BinaryExpr {
+	switch r := right.(type) {
+	case Expr:
+		return &BinaryExpr{Left: left, Operator: op, Right: r}
+	case nil:
+		return &BinaryExpr{Left: left, Operator: "IS", Right: NULL}
+	default:
+		return &BinaryExpr{Left: left, Operator: op, Right: Const(right)}
+	}
+}
+func Eq(left Expr, right any) *BinaryExpr {
+	return Binary(left, keywords.Equal, right)
+}
+func Ne(left Expr, right any) *BinaryExpr {
+	return Binary(left, keywords.NotEqual, right)
+}
+func Gt(left Expr, right any) *BinaryExpr {
+	return Binary(left, keywords.Greater, right)
+}
+func Ge(left Expr, right any) *BinaryExpr {
+	return Binary(left, keywords.GreaterEqual, right)
+}
+func Lt(left Expr, right any) *BinaryExpr {
+	return Binary(left, keywords.Less, right)
+}
+func Le(left Expr, right any) *BinaryExpr {
+	return Binary(left, keywords.LessEqual, right)
+}
+func Like(left Expr, right any) *BinaryExpr {
+	return Binary(left, keywords.Like, right)
+}
+func Raw(value any) *RawExpr {
+	return &RawExpr{Value: value}
+}
+func Fn(name string, args ...Expr) *FuncExpr {
+	return &FuncExpr{Name: name, Args: args}
+}
+
+func Between(left Expr, start Expr, end Expr) *BetweenExpr {
+	return &BetweenExpr{Left: left, Start: start, End: end}
+}
+
+func Alias(expr Expr, alias string) *AliasExpr {
+	return &AliasExpr{Expr: expr, Alias: alias}
+}
+
+func InValues(left Expr, values ...Expr) *BinaryExpr {
+	return &BinaryExpr{Left: left, Space: " ", Operator: keywords.In, Right: Paren(List(",", values...))}
+}
+
+func In(left Expr, name string, values ...any) *BinaryExpr {
+	var exprs []Expr
+	const nameFmt = "%s_%d"
+	for idx, value := range values {
+		switch vv := value.(type) {
+		case nil:
+			exprs = append(exprs, NULL)
+		case Expr:
+			exprs = append(exprs, vv)
+		default:
+			exprs = append(exprs, Var(fmt.Sprintf(nameFmt, name, idx), value))
+		}
+	}
+	return InValues(left, exprs...)
+}
+func NotIn(left Expr, name string, values ...any) *UnaryExpr {
+	return Not(In(left, name, values...))
+}
+
+func Not(expr Expr) *UnaryExpr {
+	return &UnaryExpr{Operator: keywords.Not, Expr: expr}
+}
+
+func Sort(exp Expr, direction string) Expr {
+	return List(keywords.Space, exp, Raw(direction))
+}
+func Desc(exp Expr) Expr {
+	return Sort(exp, keywords.Desc)
+}
+func Asc(exp Expr) Expr {
+	return Sort(exp, keywords.Asc)
+}

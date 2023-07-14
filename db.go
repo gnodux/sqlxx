@@ -11,6 +11,8 @@ import (
 	"errors"
 	"github.com/cookieY/sqlx"
 	"github.com/gnodux/sqlxx/builtinsql"
+	"github.com/gnodux/sqlxx/dialect"
+	"github.com/gnodux/sqlxx/expr"
 	"io/fs"
 	"strings"
 	"sync"
@@ -27,23 +29,13 @@ type DB struct {
 	m        *Factory
 	template *template.Template
 	lock     sync.Mutex
-	driver   *Driver
+	driver   *dialect.Driver
 	*sqlx.DB
 }
 
 func (d *DB) SetManager(m *Factory) {
 	d.m = m
 }
-
-//func (d *DB) ParseSQL(tplName string, args any) (string, error) {
-//	if d == nil {
-//		return "", ErrNilDB
-//	}
-//	if d.m == nil {
-//		return "", ErrNoManager
-//	}
-//	return d.m.ParseSQL(tplName, args)
-//}
 
 func (d *DB) PrepareTpl(tplName string, args any) (*sqlx.Stmt, error) {
 	if d == nil {
@@ -56,10 +48,16 @@ func (d *DB) PrepareTpl(tplName string, args any) (*sqlx.Stmt, error) {
 	return d.Preparex(query)
 }
 
-func (d *DB) RunPrepared(tplName string, arg any, fn func(*sqlx.Stmt) error) (err error) {
+func (d *DB) RunPrepared(sqlOrTpl string, arg any, fn func(*sqlx.Stmt) error) (err error) {
 	var stmt *sqlx.Stmt
-	if stmt, err = d.PrepareTpl(tplName, arg); err != nil {
-		return
+	if strings.HasSuffix(sqlOrTpl, ".sql") {
+		if stmt, err = d.PrepareTpl(sqlOrTpl, arg); err != nil {
+			return
+		}
+	} else {
+		if stmt, err = d.Preparex(sqlOrTpl); err != nil {
+			return
+		}
 	}
 	defer func() {
 		stErr := stmt.Close()
@@ -74,16 +72,33 @@ func (d *DB) PrepareTplNamed(tplName string, args any) (*sqlx.NamedStmt, error) 
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.ParseSQL(tplName, args)
+	var (
+		query string
+		err   error
+	)
+	if strings.HasSuffix(tplName, ".sql") {
+		query, err = d.ParseSQL(tplName, args)
+	} else {
+		query = tplName
+	}
 	if err != nil {
 		return nil, err
 	}
 	return d.PrepareNamed(query)
 }
-func (d *DB) RunPrepareNamed(tplName string, arg any, fn func(*sqlx.NamedStmt) error) (err error) {
+
+// RunPrepareNamed run prepared statement with named args
+// arg 如果是模版，是模版渲染参数，如果是动态SQL，则不需要(根据传入名称是否以.sql结尾判断)
+func (d *DB) RunPrepareNamed(sqlOrTpl string, arg any, fn func(*sqlx.NamedStmt) error) (err error) {
 	var stmt *sqlx.NamedStmt
-	if stmt, err = d.PrepareTplNamed(tplName, arg); err != nil {
-		return
+	if strings.HasSuffix(sqlOrTpl, ".sql") {
+		if stmt, err = d.PrepareTplNamed(sqlOrTpl, arg); err != nil {
+			return
+		}
+	} else {
+		if stmt, err = d.PrepareNamed(sqlOrTpl); err != nil {
+			return
+		}
 	}
 	defer func() {
 		stErr := stmt.Close()
@@ -201,6 +216,79 @@ func (d *DB) BatchTpl(ctx context.Context, opts *sql.TxOptions, tpl string, fn f
 	return
 }
 
+// SelectExpr 使用表达式进行查询
+func (d *DB) SelectExpr(dest interface{}, exp expr.Expr) error {
+	if d == nil {
+		return ErrNilDB
+	}
+	buff := expr.NewTracedBuffer(d.driver)
+	if d.driver.SupportNamed {
+		query, namedArgs, err := buff.BuildNamed(exp)
+		if err != nil {
+			return err
+		}
+		return d.NamedSelect(dest, query, namedArgs)
+	} else {
+		query, args, err := buff.Build(exp)
+		if err != nil {
+			return err
+		}
+		return d.Select(dest, query, args...)
+	}
+}
+
+// ExecExpr 使用表达式进行执行
+func (d *DB) ExecExpr(exp expr.Expr) (sql.Result, error) {
+	if d == nil {
+		return nil, ErrNilDB
+	}
+	buff := expr.NewTracedBuffer(d.driver)
+	if d.driver.SupportNamed {
+		query, namedArgs, err := buff.BuildNamed(exp)
+		if err != nil {
+			return nil, err
+		}
+		return d.NamedExec(query, namedArgs)
+	} else {
+		query, args, err := buff.Build(exp)
+		if err != nil {
+			return nil, err
+		}
+		return d.Exec(query, args...)
+	}
+}
+
+func (d *DB) GetExpr(dest interface{}, exp expr.Expr) error {
+	if d == nil {
+		return ErrNilDB
+	}
+	buff := expr.NewTracedBuffer(d.driver)
+	if d.driver.SupportNamed {
+		query, namedArgs, err := buff.BuildNamed(exp)
+		if err != nil {
+			return err
+		}
+		return d.NamedGet(dest, query, namedArgs)
+	} else {
+		query, args, err := buff.Build(exp)
+		if err != nil {
+			return err
+		}
+		return d.Get(dest, query, args...)
+	}
+}
+
+func (d *DB) NamedGet(dest interface{}, query string, arg interface{}) error {
+	stmt, err := d.PrepareNamed(query)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = stmt.Close()
+	}()
+	return stmt.Get(dest, arg)
+}
+
 func (d *DB) SetTemplate(tpl *template.Template) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -278,7 +366,7 @@ func Open(driverName, datasource string) (*DB, error) {
 	return OpenWith(StdFactory, d, datasource)
 }
 
-func OpenWith(f *Factory, driver *Driver, datasource string) (*DB, error) {
+func OpenWith(f *Factory, driver *dialect.Driver, datasource string) (*DB, error) {
 	if driver == nil {
 		driver = f.driver
 	}

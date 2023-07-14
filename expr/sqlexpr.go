@@ -8,61 +8,77 @@
 package expr
 
 import (
-	"reflect"
+	"github.com/gnodux/sqlxx/dialect"
 	"strings"
 )
 
 // TracedBuffer is a buffer that can be used to trace the
 type TracedBuffer struct {
-	*strings.Builder
+	//namedArgs 命名参数
+	namedArgs map[string]any
+	//args 位置参数
+	args     []any
+	NamedVar bool
+	*dialect.Driver
+	strings.Builder
+}
+
+func NewTracedBuffer(driver *dialect.Driver) *TracedBuffer {
+	return &TracedBuffer{Driver: driver, NamedVar: true}
+}
+
+func (t *TracedBuffer) AppendNamedArg(name string, value any) *TracedBuffer {
+	if t.namedArgs == nil {
+		t.namedArgs = map[string]any{}
+	}
+	t.namedArgs[name] = value
+	return t
+}
+func (t *TracedBuffer) AppendArg(value any) *TracedBuffer {
+	t.args = append(t.args, value)
+	return t
+}
+func (t *TracedBuffer) Append(buf []byte) *TracedBuffer {
+	t.Builder.Write(buf)
+	return t
+}
+
+func (t *TracedBuffer) NewLine() *TracedBuffer {
+	t.Builder.WriteString("\n")
+	return t
+}
+func (t *TracedBuffer) AppendString(s string) *TracedBuffer {
+	t.Builder.WriteString(s)
+	return t
+}
+func (t *TracedBuffer) AppendExprs(exprs ...Expr) *TracedBuffer {
+	for _, expr := range exprs {
+		expr.Format(t)
+	}
+	return t
+}
+
+func (t *TracedBuffer) AppendKeyword(keyword string) *TracedBuffer {
+	t.Builder.WriteString(t.Keyword(keyword))
+	return t
+}
+func (t *TracedBuffer) AppendKeywordWithSpace(keyword string) *TracedBuffer {
+	t.Builder.WriteString(t.KeywordWithSpace(keyword))
+	return t
+}
+func (t *TracedBuffer) Build(exp Expr) (string, []any, error) {
+	t.NamedVar = false
+	t.Builder.Reset()
+	exp.Format(t)
+	return t.Builder.String(), t.args, nil
+}
+func (t *TracedBuffer) BuildNamed(exp Expr) (string, map[string]any, error) {
+	t.NamedVar = true
+	t.Builder.Reset()
+	exp.Format(t)
+	return t.Builder.String(), t.namedArgs, nil
 }
 
 type Expr interface {
 	Format(buffer *TracedBuffer)
-}
-
-func toMap(v any) map[string]any {
-	if v == nil {
-		return nil
-	}
-	if m, ok := v.(map[string]any); ok {
-		return m
-	}
-	vv := reflect.ValueOf(v)
-	if vv.Kind() == reflect.Ptr {
-		vv = vv.Elem()
-		if vv.Kind() == reflect.Ptr {
-			vv = vv.Elem()
-		}
-	}
-	result := map[string]any{}
-	typ := reflect.TypeOf(vv.Interface())
-	for idx := 0; idx < vv.NumField(); idx++ {
-		f := vv.Field(idx)
-		ft := typ.Field(idx)
-		if ft.IsExported() && !f.IsZero() {
-			if ft.Anonymous {
-				for k, v := range toMap(f.Interface()) {
-					result[k] = v
-				}
-			} else {
-				result[ft.Name] = f.Interface()
-			}
-		}
-	}
-
-	return result
-}
-func mergeMap(target map[string]any, sources ...map[string]any) {
-	if target == nil {
-		return
-	}
-	for _, source := range sources {
-		if source == nil {
-			continue
-		}
-		for k, v := range source {
-			target[k] = v
-		}
-	}
 }

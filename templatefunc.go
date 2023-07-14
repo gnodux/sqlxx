@@ -7,50 +7,35 @@ package sqlxx
 
 import (
 	"fmt"
-	"github.com/gnodux/sqlxx/expr"
+	"github.com/gnodux/sqlxx/dialect"
+	. "github.com/gnodux/sqlxx/meta"
+	"github.com/gnodux/sqlxx/utils"
 	"reflect"
 	"strings"
 	"text/template"
 	"time"
 )
 
-const (
-	sqlDate = "'2006-01-02 15:04:05'"
-)
-
-func MakeFuncMap(driver *Driver) template.FuncMap {
+func MakeFuncMap(driver *dialect.Driver) template.FuncMap {
 	return template.FuncMap{
 		"where":      func(v any) string { return where(driver, v) },
 		"namedWhere": func(v any) string { return namedWhere(driver, v) },
 		"nwhere":     func(v any) string { return namedWhere(driver, v) },
-		"asc":        func(cols []string) string { return orderByMap(driver, expr.Asc(cols...)) },
-		"desc":       func(cols []string) string { return orderByMap(driver, expr.Desc(cols...)) },
+		//"asc":        func(cols []string) string { return orderByMap(driver, expr.SimpleAsc(cols...)) },
+		//"desc":       func(cols []string) string { return orderByMap(driver, expr.SimpleDesc(cols...)) },
 		"v":          func(v any) string { return sqlValue(driver, v) },
 		"n":          driver.SQLNameFunc,
 		"sqlName":    driver.SQLNameFunc,
 		"list":       func(v []any) string { return sqlValues(driver, v) },
-		"columns":    func(v []*ColumnMeta) string { return columns(driver, v) },
-		"allColumns": func(v []*ColumnMeta) string { return allColumns(driver, v) },
-		"args":       func(v []*ColumnMeta) string { return args(driver, v) },
-		"setArgs":    func(v []*ColumnMeta) string { return sets(v, driver) },
+		"columns":    func(v []*Column) string { return columns(driver, v) },
+		"allColumns": func(v []*Column) string { return allColumns(driver, v) },
+		"args":       func(v []*Column) string { return args(driver, v) },
+		"setArgs":    func(v []*Column) string { return sets(v, driver) },
 		"orderBy":    func(v map[string]string) string { return orderByMap(driver, v) },
 	}
 }
 
-func namedWhere(driver *Driver, v any) string {
-	return whereWith(driver, v, driver.KeywordWithSpace("AND"), true)
-}
-
-//func setValue(v any, newV any) any {
-//	rv := reflect.ValueOf(v)
-//	if rv.Kind() == reflect.Ptr {
-//		rv = rv.Elem()
-//	}
-//	rv.Set(reflect.ValueOf(newV))
-//	return nil
-//}
-
-func orderByMap(driver *Driver, order map[string]string) string {
+func orderByMap(driver *dialect.Driver, order map[string]string) string {
 	if len(order) == 0 {
 		return ""
 	}
@@ -68,8 +53,11 @@ func orderByMap(driver *Driver, order map[string]string) string {
 	}
 	return sb.String()
 }
+func namedWhere(driver *dialect.Driver, v any) string {
+	return whereWith(driver, v, driver.KeywordWithSpace("AND"), true)
+}
 
-func columns(driver *Driver, cols []*ColumnMeta) string {
+func columns(driver *dialect.Driver, cols []*Column) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -82,7 +70,7 @@ func columns(driver *Driver, cols []*ColumnMeta) string {
 	}
 	return sb.String()
 }
-func allColumns(driver *Driver, cols []*ColumnMeta) string {
+func allColumns(driver *dialect.Driver, cols []*Column) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -93,7 +81,7 @@ func allColumns(driver *Driver, cols []*ColumnMeta) string {
 	return sb.String()
 }
 
-func args(driver *Driver, cols []*ColumnMeta) string {
+func args(driver *dialect.Driver, cols []*Column) string {
 	sb := strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -108,7 +96,7 @@ func args(driver *Driver, cols []*ColumnMeta) string {
 	return sb.String()
 }
 
-func sets(cols []*ColumnMeta, driver *Driver) string {
+func sets(cols []*Column, driver *dialect.Driver) string {
 	sb := &strings.Builder{}
 	pre := ""
 	for _, c := range cols {
@@ -124,13 +112,14 @@ func sets(cols []*ColumnMeta, driver *Driver) string {
 	return sb.String()
 }
 
-func where(driver *Driver, v any) string {
+func where(driver *dialect.Driver, v any) string {
 	return whereWith(driver, v, driver.KeywordWithSpace("AND"), false)
 }
-func whereOr(driver *Driver, v any) string {
+func whereOr(driver *dialect.Driver, v any) string {
 	return whereWith(driver, v, driver.KeywordWithSpace("OR"), false)
 }
-func whereWith(driver *Driver, arg any, op string, named bool) string {
+
+func whereWith(driver *dialect.Driver, arg any, op string, named bool) string {
 	argv := reflect.ValueOf(arg)
 	if arg == nil {
 		return ""
@@ -188,7 +177,7 @@ func whereWith(driver *Driver, arg any, op string, named bool) string {
 }
 
 // sqlValues list of sqlValues
-func sqlValues(driver *Driver, v any) string {
+func sqlValues(driver *dialect.Driver, v any) string {
 	value := reflect.ValueOf(v)
 	comma := ""
 	sb := &strings.Builder{}
@@ -206,19 +195,19 @@ func sqlValues(driver *Driver, v any) string {
 }
 
 // value sql value converter(sql inject process)
-func sqlValue(driver *Driver, arg any) string {
+func sqlValue(driver *dialect.Driver, arg any) string {
 	var ret string
 	switch a := arg.(type) {
 	case nil:
 		ret = driver.Keyword("NULL")
 	case string:
-		ret = "'" + escape(a) + "'"
+		ret = "'" + utils.Escape(a) + "'"
 	case *string:
-		ret = "'" + escape(*a) + "'"
+		ret = "'" + utils.Escape(*a) + "'"
 	case time.Time:
-		ret = a.Format(sqlDate)
+		ret = a.Format(driver.DateFormat)
 	case *time.Time:
-		ret = a.Format(sqlDate)
+		ret = a.Format(driver.DateFormat)
 	case bool:
 		if a {
 			ret = driver.Keyword("TRUE")
@@ -232,67 +221,4 @@ func sqlValue(driver *Driver, arg any) string {
 	}
 
 	return ret
-}
-
-var (
-	encodeRef = map[byte]byte{
-		'\x00': '0',
-		'\'':   '\'',
-		'"':    '"',
-		'\b':   'b',
-		'\n':   'n',
-		'\r':   'r',
-		'\t':   't',
-		26:     'Z', // ctl-Z
-		'\\':   '\\',
-	}
-	EncodeMap  [256]byte
-	DONTESCAPE byte = 255
-)
-
-// escape only support utf-8
-func escape(sql string) string {
-	dest := make([]byte, 0, 2*len(sql))
-
-	for _, w := range []byte(sql) {
-		if c := EncodeMap[w]; c == DONTESCAPE {
-			dest = append(dest, w)
-		} else {
-			dest = append(dest, '\\', c)
-		}
-	}
-
-	return string(dest)
-}
-func mysqlName(name any) string {
-	return quotedName(name, "`", "`")
-}
-
-func MakeNameFunc(prefix, suffix string) func(any) string {
-	return func(name any) string {
-		return quotedName(name, prefix, suffix)
-	}
-}
-
-func quotedName(name any, prefix, suffix string) string {
-	col := ""
-	switch n := name.(type) {
-	case string:
-		col = prefix + n + suffix
-	case fmt.Stringer:
-		col = prefix + n.String() + suffix
-	default:
-		col = fmt.Sprintf("%s%v%s", prefix, n, suffix)
-	}
-	return col
-}
-func init() {
-	for i := range EncodeMap {
-		EncodeMap[i] = DONTESCAPE
-	}
-	for i := range EncodeMap {
-		if to, ok := encodeRef[byte(i)]; ok {
-			EncodeMap[byte(i)] = to
-		}
-	}
 }
