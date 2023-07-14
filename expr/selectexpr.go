@@ -109,7 +109,7 @@ func (s *SelectExpr) Format(buffer *TracedBuffer) {
 		buffer.AppendString(keywords.Space)
 		buffer.AppendString(buffer.KeywordWithSpace(keywords.Offset))
 		buffer.AppendString(keywords.Space)
-		Var("offset", s.limit).Format(buffer)
+		Var("offset", s.offset).Format(buffer)
 		buffer.AppendString(keywords.Space)
 	}
 }
