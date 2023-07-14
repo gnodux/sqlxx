@@ -6,7 +6,6 @@
 package expr
 
 import (
-	"fmt"
 	"github.com/gnodux/sqlxx/expr/keywords"
 )
 
@@ -40,7 +39,7 @@ func (s *SelectExpr) WithoutCount() *SelectExpr {
 }
 
 func (s *SelectExpr) BuildCountExpr() *SelectExpr {
-	return Select().
+	return Select(Count).
 		From(s.FromExpr).
 		Where(s.WhereExpr).GroupBy(s.GroupByExpr).Having(s.HavingExpr)
 }
@@ -105,9 +104,13 @@ func (s *SelectExpr) Format(buffer *TracedBuffer) {
 	}
 	if s.limit > 0 {
 		buffer.AppendString(buffer.KeywordWithSpace(keywords.Limit))
-		buffer.AppendString(fmt.Sprintf("%d", s.limit))
+		buffer.AppendString(keywords.Space)
+		Var("limit", s.limit).Format(buffer)
+		buffer.AppendString(keywords.Space)
 		buffer.AppendString(buffer.KeywordWithSpace(keywords.Offset))
-		buffer.AppendString(fmt.Sprintf("%d", s.offset))
+		buffer.AppendString(keywords.Space)
+		Var("offset", s.limit).Format(buffer)
+		buffer.AppendString(keywords.Space)
 	}
 }
 

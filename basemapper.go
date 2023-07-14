@@ -296,7 +296,12 @@ func (b *BaseMapper[T]) CountBy(where map[string]any, fns ...expr.FilterFn) (tot
 	if len(whereColumns) > 0 {
 		fns = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...))}, fns...)
 	}
-	err = b.GetExpr(&total, queryExpr, fns...)
+	//这里filters提前处理，避免排序\limit\offset等造成的错误
+	for _, fn := range fns {
+		fn(queryExpr)
+	}
+	queryExpr = queryExpr.BuildCountExpr()
+	err = b.GetExpr(&total, queryExpr)
 	return
 }
 func (b *BaseMapper[T]) CountByExample(entity T, filters ...expr.FilterFn) (total int64, err error) {
