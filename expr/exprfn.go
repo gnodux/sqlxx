@@ -157,3 +157,14 @@ func Set(exps ...Expr) FilterFn {
 		s.Values = exps
 	})
 }
+
+func UseSort(direct string, exprs ...Expr) FilterFn {
+	return SelectFn(func(s *SelectExpr) {
+		s.OrderByExpr = Sorts(direct, exprs...)
+	})
+}
+func UseOrderBy(exp Expr) FilterFn {
+	return SelectFn(func(s *SelectExpr) {
+		s.OrderByExpr = exp
+	})
+}

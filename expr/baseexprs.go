@@ -372,6 +372,13 @@ func Not(expr Expr) *UnaryExpr {
 func Sort(exp Expr, direction string) Expr {
 	return List(keywords.Space, exp, Raw(direction))
 }
+func Sorts(direction string, exps ...Expr) Expr {
+	var exprs []Expr
+	for _, exp := range exps {
+		exprs = append(exprs, Sort(exp, direction))
+	}
+	return List(",", exprs...)
+}
 func Desc(exp Expr) Expr {
 	return Sort(exp, keywords.Desc)
 }
