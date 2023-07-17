@@ -102,6 +102,14 @@ func LowerCase(s string) string {
 	}
 	return string(newStr)
 }
+
+func Must[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func BigCamelCase(s string) string {
 	if s == "" {
 		return s

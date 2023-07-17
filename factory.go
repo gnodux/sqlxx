@@ -8,6 +8,7 @@ package sqlxx
 import (
 	"fmt"
 	"github.com/gnodux/sqlxx/dialect"
+	"github.com/gnodux/sqlxx/utils"
 	"io/fs"
 	"sync"
 )
@@ -93,76 +94,9 @@ func (m *Factory) ClearTemplateFS() {
 	m.templateFS = nil
 }
 
-//	func (m *Factory) SetTemplate(tpl *template.Template) {
-//		m.lock.Lock()
-//		defer m.lock.Unlock()
-//		m.template = tpl
-//	}
-//
-//	func (m *Factory) Template() *template.Template {
-//		return m.template
-//	}
-//
-// // ParseTemplateFS parse template from filesystem。
-// // 为了保留目录结构，没有直接使用template的ParseFS(template中的ParseFS方法不会保留路径名称)
-//
-//	func (m *Factory) ParseTemplateFS(f fs.FS, patterns ...string) error {
-//		log.Info("parse template from filesystem: ", f, " with patterns:", patterns)
-//		for _, pattern := range patterns {
-//			matches, err := fs.Glob(f, pattern)
-//			if err != nil {
-//				return err
-//			}
-//			for _, mf := range matches {
-//				buf, err := fs.ReadFile(f, mf)
-//				if err != nil {
-//					return err
-//				}
-//				log.Info("parse sql:", mf)
-//				if _, err = m.template.New(strings.ReplaceAll(mf, "\\", "/")).ParseSQL(string(buf)); err != nil {
-//					return err
-//				}
-//			}
-//		}
-//		return nil
-//	}
-//
-//	func (m *Factory) ParseTemplate(name string, tpl string) (*template.Template, error) {
-//		m.lock.Lock()
-//		defer m.lock.Unlock()
-//		t, err := m.template.New(name).ParseSQL(tpl)
-//		return t, err
-//	}
-//
-//	func (m *Factory) ParseSQL(sqlOrTpl string, args any) (query string, err error) {
-//		if !strings.HasSuffix(sqlOrTpl, ".sql") {
-//			if strings.Contains(sqlOrTpl, "{{") && strings.Contains(sqlOrTpl, "}}") {
-//				name := fmt.Sprintf("%x", md5.Sum([]byte(sqlOrTpl)))
-//				t := m.template.Lookup(name)
-//				if t == nil {
-//					t, err = m.ParseTemplate(name, sqlOrTpl)
-//				}
-//				if err != nil {
-//					return
-//				}
-//				sb := &strings.Builder{}
-//				err = t.Execute(sb, args)
-//				if err == nil {
-//					query = sb.String()
-//				}
-//
-//			} else {
-//				query = sqlOrTpl
-//			}
-//		} else {
-//			sb := &strings.Builder{}
-//			err = m.template.ExecuteTemplate(sb, sqlOrTpl, args)
-//			if err == nil {
-//				query = sb.String()
-//			}
-//		}
-//		return
-//	}
+//Get 获取一个数据库连接
+//name: 数据库连接名称
+
 func (m *Factory) Get(name string) (*DB, error) {
 	conn, ok := func() (*DB, bool) {
 		m.lock.RLock()
@@ -199,12 +133,10 @@ func (m *Factory) Get(name string) (*DB, error) {
 	}
 	return conn, nil
 }
+
+// MustGet 获取一个数据库连接，如果不存在则panic
 func (m *Factory) MustGet(name string) *DB {
-	d, err := m.Get(name)
-	if err != nil {
-		panic(err)
-	}
-	return d
+	return utils.Must(m.Get(name))
 }
 
 // CreateAndSet 创建新的数据库连接并放入管理器中
@@ -216,6 +148,8 @@ func (m *Factory) CreateAndSet(name string, fn DBConstructor) (*DB, error) {
 	m.Set(name, d)
 	return d, nil
 }
+
+// Open 打开一个数据库连接
 func (m *Factory) Open(name, driverName, dsn string) (*DB, error) {
 	db, err := OpenWith(m, Drivers[driverName], dsn)
 	if err != nil {
@@ -225,6 +159,7 @@ func (m *Factory) Open(name, driverName, dsn string) (*DB, error) {
 	return db, nil
 }
 
+// Set set a database
 func (m *Factory) Set(name string, db *DB) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -252,11 +187,4 @@ func (m *Factory) Shutdown() error {
 }
 func (m *Factory) String() string {
 	return fmt.Sprintf("db[%s]", m.name)
-}
-
-func Must[T any](v T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return v
 }

@@ -5,7 +5,10 @@
 
 package sqlxx
 
-import "time"
+import (
+	"testing"
+	"time"
+)
 
 type Tenant struct {
 	ID        int64  `json:"id"`
@@ -73,4 +76,20 @@ type Transaction struct {
 
 func (m *Transaction) TableName() string {
 	return "transaction"
+}
+
+func TestSetId(t *testing.T) {
+	users := []User{
+		{},
+		{},
+		{},
+	}
+	for idx, _ := range users {
+		SetPrimayKey(&users[idx])
+		encoder.Encode(users[idx])
+	}
+	encoder.Encode(users)
+}
+func SetPrimayKey(user *User) {
+	user.ID = 1
 }

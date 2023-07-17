@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/gnodux/sqlxx/utils"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -72,16 +73,16 @@ func initData() {
 		}
 		if count == 0 {
 			//add roles
-			Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			utils.Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
 				Name: "admin",
 				Desc: "system administrator",
 			}))
 
-			Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			utils.Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
 				Name: "user",
 				Desc: "normal user",
 			}))
-			Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			utils.Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
 				Name: "customer",
 				Desc: "customer",
 			}))
@@ -118,5 +119,5 @@ func TestNilDB(t *testing.T) {
 	fmt.Println(err)
 }
 func TestMustGet(t *testing.T) {
-	Must(Get(DefaultName))
+	utils.Must(Get(DefaultName))
 }

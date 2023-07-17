@@ -60,7 +60,7 @@ func TestIn(t *testing.T) {
 				name:   "id",
 				values: []any{1, 2, 3},
 			},
-			want: "`id` IN (:id_0,:id_1,:id_2)",
+			want: "`id` IN ( :id_0,:id_1,:id_2 )",
 		},
 		{
 			name: "unnamed in",
@@ -69,7 +69,7 @@ func TestIn(t *testing.T) {
 				name:   "",
 				values: []any{1, 2, 3},
 			},
-			want: "`id` IN (?,?,?)",
+			want: "`id` IN ( ?,?,? )",
 		},
 	}
 	for _, tt := range tests {
@@ -80,6 +80,40 @@ func TestIn(t *testing.T) {
 			}
 			expr := In(tt.args.left, tt.args.name, tt.args.values...)
 			expr.Format(buf)
+			assert.Equal(t, tt.want, buf.String())
+		})
+	}
+}
+
+func TestInsertInto(t *testing.T) {
+	tests := []struct {
+		name  string
+		table Expr
+		cols  []*BinaryExpr
+		want  string
+	}{
+		{
+			name:  "simple",
+			table: Name("user"),
+			cols: []*BinaryExpr{
+				Name("name").Eq(Const("gnodux")),
+				Name("age").Eq(Const(18)),
+			},
+			want: "INSERT INTO `user` ( `name`,`age` ) VALUES ( 'gnodux',18 )",
+		}, {
+			name:  "set	map",
+			table: Name("user"),
+			cols: []*BinaryExpr{
+				Name("name").Eq(Var("name", "gnodux")),
+				Name("age").Eq(Var("age", 18)),
+			},
+			want: "INSERT INTO `user` ( `name`,`age` ) VALUES ( :name,:age )",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := NewTracedBuffer(dialect.MySQL)
+			InsertInto(tt.table, tt.cols...).Format(buf)
 			assert.Equal(t, tt.want, buf.String())
 		})
 	}

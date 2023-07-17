@@ -16,12 +16,11 @@ import (
 	"sync"
 )
 
-var (
-	ErrIdNotFound = errors.New("primary key not found")
-)
-
-type SelectExprBuilder func(*expr.SelectExpr)
-
+// BaseMapper 基础的ORM功能
+// 1. 默认的CRUD操作
+// 2. 表达式查询
+// 3. 模板查询
+// 4. 事务操作
 type BaseMapper[T any] struct {
 	*DB
 	once            sync.Once
@@ -41,13 +40,20 @@ func (b *BaseMapper[T]) init() {
 	})
 }
 
+// Meta 获取实体元数据
 func (b *BaseMapper[T]) Meta() *Entity {
 	b.init()
 	return b.meta
 }
 
-func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err error) {
+// Column 获取列元数据
+func (b *BaseMapper[T]) Column(name string) *Column {
 	b.init()
+	return b.meta.Column(name)
+}
+
+// ListById 通过ID列表查询
+func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err error) {
 	if len(ids) == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -80,10 +86,11 @@ func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err er
 }
 
 // Update 更新所有列.(如果包含租户ID,则会自动添加租户ID作为更新条件)
+//
 // useTenantId 是否使用租户ID作为更新条件
+//
 // 如果需要更新部分列,请使用PartialUpdate
 func (b *BaseMapper[T]) Update(useTenantId bool, entities ...T) error {
-	b.init()
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
@@ -103,11 +110,13 @@ func (b *BaseMapper[T]) Update(useTenantId bool, entities ...T) error {
 }
 
 // PartialUpdate 更新指定列.(如果包含租户ID,则会自动添加租户ID作为更新条件)
+//
 // useTenantId 是否使用租户ID作为更新条件
+//
 // specifiedField 指定需要更新的列,如果为空则自动从实体中获取"非空"列进行更新（指定更新列名时，使用字段名而不是列名）
+//
 // entities 实体列表
 func (b *BaseMapper[T]) PartialUpdate(useTenantId bool, specifiedField []string, entities ...T) error {
-	b.init()
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
@@ -151,14 +160,16 @@ func (b *BaseMapper[T]) PartialUpdate(useTenantId bool, specifiedField []string,
 }
 
 // AutoPartialUpdate 更新指定列.(不会自动添加租户ID作为更新条件)
+//
 // useTenantId 是否使用租户ID作为更新条件
 func (b *BaseMapper[T]) AutoPartialUpdate(useTenantId bool, entities ...T) error {
 	return b.PartialUpdate(useTenantId, nil, entities...)
 }
 
-// DeleteById will set the is_deleted flag to true(if is_deleted column exists) or really delete record(if is_deleted column not exists).
+// DeleteById 根据租户ID和ID删除记录
+//
+// 删除使用的SQL模版是builtin/delete_by_id.sql
 func (b *BaseMapper[T]) DeleteById(tenantId any, ids ...any) error {
-	b.init()
 	if len(ids) == 0 {
 		return sql.ErrNoRows
 	}
@@ -177,9 +188,11 @@ func (b *BaseMapper[T]) DeleteById(tenantId any, ids ...any) error {
 	})
 }
 
-// EraseById will REALLY delete the record from database.
+// EraseById 根据租户ID和ID擦除记录
+//
+// 擦除使用的SQL模版是builtin/erase_by_id.sql,该操作将完整删除记录
 func (b *BaseMapper[T]) EraseById(tenantId any, ids ...any) error {
-	b.init()
+
 	if ids == nil {
 		return sql.ErrNoRows
 	}
@@ -199,18 +212,18 @@ func (b *BaseMapper[T]) EraseById(tenantId any, ids ...any) error {
 }
 
 func (b *BaseMapper[T]) Create(entities ...T) error {
-	b.init()
+
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
 	return b.CreateTx(func(tx *Tx) (err error) {
 		return tx.RunCurrentPrepareNamed(b.meta, func(stmt *sqlx.NamedStmt) error {
 			var result sql.Result
-			for _, entity := range entities {
-				if result, err = stmt.Exec(entity); err != nil {
+			for idx, _ := range entities {
+				if result, err = stmt.Exec(entities[idx]); err != nil {
 					return err
 				} else {
-					err = setPrimaryKey(&entity, b.meta, result)
+					err = setPrimaryKey(&entities[idx], b.meta, result)
 				}
 			}
 			return nil
@@ -218,43 +231,10 @@ func (b *BaseMapper[T]) Create(entities ...T) error {
 	})
 }
 
-//	func (b *BaseMapper[T]) SimpleQuery(query *expr.SimpleExpr) (result []T, err error) {
-//		return b.SelectBy(query.Condition, query.Sort, query.LimitRows, query.OffsetRows)
-//	}
-//
-//	func (b *BaseMapper[T]) SimpleQueryWithCount(query *expr.SimpleExpr) (result []T, count int, err error) {
-//		count, err = b.CountBy(query.Condition)
-//		if err != nil {
-//			return
-//		}
-//		result, err = b.SelectBy(query.Condition, query.Sort, query.LimitRows, query.OffsetRows)
-//		return
-//	}
-//func (b *BaseMapper[T]) SelectBy(where map[string]any, orderBy map[string]string, limit, offset int) (result []T, err error) {
-//	b.init()
-//	argMap := map[string]any{
-//		"Meta":    b.meta,
-//		"Where":   where,
-//		"OrderBy": orderBy,
-//		"Limit":   limit,
-//		"Offset":  offset,
-//	}
-//	err = b.RunPrepareNamed("builtin/select_by.sql", argMap, func(stmt *sqlx.NamedStmt) error {
-//		queryArgs := map[string]any{}
-//		for k, v := range where {
-//			queryArgs[k] = v
-//		}
-//		queryArgs["Limit"] = limit
-//		queryArgs["Offset"] = offset
-//		return stmt.Select(&result, queryArgs)
-//	})
-//	return
-//}
-
 // Select 使用SelectExprBuilder构建查询
 // 默认限制100条,如果需要更多,请使用builder中的Limit方法
 func (b *BaseMapper[T]) Select(builders ...expr.FilterFn) (result []T, total int64, err error) {
-	b.init()
+
 	//默认Limit 100
 	queryExpr := expr.Select(b.meta.ColumnExprs()...).From(b.meta).Limit(100)
 	for _, fn := range builders {
@@ -271,20 +251,43 @@ func (b *BaseMapper[T]) Select(builders ...expr.FilterFn) (result []T, total int
 	return
 }
 
-//func (b *BaseMapper[T]) CountBy(where map[string]any) (total int, err error) {
-//	b.init()
-//	argm := map[string]any{
-//		"Meta":  b.meta,
-//		"Where": where,
-//	}
-//	err = b.RunPrepareNamed("builtin/count_by.sql", argm, func(stmt *sqlx.NamedStmt) error {
-//		return stmt.Get(&total, where)
-//	})
-//	return
-//}
+func (b *BaseMapper[T]) InsertExpr(builders ...expr.InsertFilterFn) error {
+	insertExpr := expr.InsertInto(b.meta)
+	for _, fn := range builders {
+		fn(insertExpr)
+	}
+	_, err := b.ExecExpr(insertExpr)
+	return err
+}
+
+// Insert 插入数据,如果有主键,会自动填充主键
+//
+// 和Create不一样的是，Insert会忽略空值，仅插入有值的字段
+func (b *BaseMapper[T]) Insert(entities ...T) error {
+	return b.CreateTx(func(tx *Tx) error {
+		for idx, _ := range entities {
+			insertExpr := expr.InsertInto(b.meta)
+			values := ToMap(entities[idx])
+			for k, v := range values {
+				col := b.meta.Column(k)
+				if col != nil {
+					insertExpr.SetExpr(col, expr.Var(k, v))
+				}
+			}
+			result, err := tx.ExecExpr(insertExpr)
+			if err != nil {
+				return err
+			} else {
+				if err = setPrimaryKey(&entities[idx], b.meta, result); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
 
 func (b *BaseMapper[T]) CountBy(where map[string]any, fns ...expr.FilterFn) (total int64, err error) {
-	b.init()
 	queryExpr := expr.Select(expr.Count).From(b.meta)
 	var whereColumns []expr.Expr
 	for name, val := range where {
@@ -324,7 +327,7 @@ func (b *BaseMapper[T]) SelectByExample(entity T, builders ...expr.FilterFn) ([]
 }
 
 func (b *BaseMapper[T]) UpdateBy(builders ...expr.FilterFn) (effect int64, err error) {
-	b.init()
+
 	updateExpr := expr.Update(b.meta)
 	for _, fn := range builders {
 		fn(updateExpr)
@@ -360,8 +363,8 @@ func (b *BaseMapper[T]) UpdateByExample(newValue T, example T, builders ...expr.
 	}
 	return b.UpdateBy(builders...)
 }
-func (b *BaseMapper[T]) DeleteBy(builders ...expr.DeleteExprFn) (effect int64, err error) {
-	b.init()
+func (b *BaseMapper[T]) DeleteBy(builders ...expr.DeleteExprFn) (rowAffected int64, err error) {
+
 	if len(builders) == 0 {
 		return 0, errors.New("delete by must have one builder")
 	}
@@ -374,7 +377,7 @@ func (b *BaseMapper[T]) DeleteBy(builders ...expr.DeleteExprFn) (effect int64, e
 	if err != nil {
 		return 0, err
 	}
-	effect, err = result.RowsAffected()
+	rowAffected, err = result.RowsAffected()
 	return
 }
 func (b *BaseMapper[T]) DeleteByExample(example T, builders ...expr.DeleteExprFn) (effect int64, err error) {

@@ -102,7 +102,8 @@ func (s *SelectExpr) Format(buffer *TracedBuffer) {
 		buffer.AppendString(buffer.KeywordWithSpace(keywords.OrderBy))
 		s.OrderByExpr.Format(buffer)
 	}
-	if s.limit > 0 {
+	if s.limit != 0 {
+
 		buffer.AppendString(buffer.KeywordWithSpace(keywords.Limit))
 		buffer.AppendString(keywords.Space)
 		Var("limit", s.limit).Format(buffer)

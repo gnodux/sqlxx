@@ -164,7 +164,7 @@ func TestBaseMapper_Struct(t *testing.T) {
 				users, _, err := mapper.SelectByExample(User{
 					Address: "%57",
 					Name:    "user_%",
-				}, expr.Limit(10))
+				}, expr.UseLimit(10))
 				return users, err
 			},
 		},
@@ -219,12 +219,12 @@ func TestBaseMapper_Struct(t *testing.T) {
 		}, {
 			Name: "query test 1",
 			fn: func() (any, error) {
-				result, total, err := mapper.Select(expr.SelectFn(func(e *expr.SelectExpr) {
+				result, total, err := mapper.Select(expr.SelectFilter(func(e *expr.SelectExpr) {
 					e.Where(
 						expr.And(
 							expr.Eq(expr.Name("name"),
 								expr.Var("name", "test user1")))).Limit(10).Offset(0)
-				}), expr.UseCount)
+				}), expr.WithCount)
 				t.Log("total", total)
 				return result, err
 			},
@@ -276,7 +276,7 @@ func TestBaseMapper_Duck(t *testing.T) {
 	users, _, err := m.User.SelectByExample(User{
 		Name: "user_1%",
 		Role: "admin",
-	}, expr.Limit(1), expr.AutoFuzzy)
+	}, expr.UseLimit(1), expr.AutoFuzzy)
 	assert.NoError(t, err)
 	encoder.Encode(users)
 }
@@ -330,4 +330,32 @@ func Test_ToMap(t *testing.T) {
 	}
 	assert.Equal(t, m, utils.ToMap(ue))
 	encoder.Encode(utils.ToMap(ue))
+}
+
+func TestBaseMapper_Insert(t *testing.T) {
+	mapper, err := NewMapper[BaseMapper[*User]](DefaultName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newUser := User{
+		Name:     "test user1",
+		TenantID: 100102,
+		Password: fmt.Sprintf("%d", rand.Int63n(99999)),
+		Birthday: time.Now(),
+		Address:  "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+		Role:     "user",
+	}
+
+	err = mapper.Insert(&newUser)
+	assert.NoError(t, err)
+	assert.Greater(t, newUser.ID, int64(0))
+	encoder.Encode(newUser)
+	effect, err := mapper.DeleteBy(func(e *expr.DeleteExpr) {
+		e.Where(expr.N("id").Eq(newUser.ID))
+	})
+	assert.NoError(t, err)
+	if effect == 0 {
+		t.Fatal("delete error")
+	}
+
 }

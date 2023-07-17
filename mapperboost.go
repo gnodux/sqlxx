@@ -8,24 +8,48 @@ package sqlxx
 import (
 	"database/sql"
 	"errors"
+	"github.com/gnodux/sqlxx/utils"
 	"path/filepath"
 	"reflect"
 	"strings"
 )
 
 const (
-	TagDS             = "ds"
-	TagSQL            = "sql"
-	TagTx             = "tx"
-	TagReadonly       = "readonly"
-	TxDefault         = "Default"
+
+	// TagDS 数据源
+	TagDS = "ds"
+	// TagSQL sql模版（或inline sql）
+	TagSQL = "sql"
+
+	// TagTx 事务级别
+	TagTx = "tx"
+
+	// TagReadonly 事务是否只读
+	TagReadonly = "readonly"
+
+	// TxDefault 默认事务级别
+	TxDefault = "Default"
+
+	// TxReadUncommitted 事务级别：ReadUncommitted
 	TxReadUncommitted = "ReadUncommitted"
-	TxReadCommitted   = "ReadCommitted"
-	TxWriteCommitted  = "WriteCommitted"
-	TxRepeatableRead  = "RepeatableRead"
-	TxSnapshot        = "Snapshot"
-	TxSerializable    = "Serializable"
-	TxLinearizable    = "Linearizable"
+
+	// TxReadCommitted 事务级别：ReadCommitted
+	TxReadCommitted = "ReadCommitted"
+
+	// TxWriteCommitted 事务级别：WriteCommitted
+	TxWriteCommitted = "WriteCommitted"
+
+	// TxRepeatableRead 事务级别：RepeatableRead
+	TxRepeatableRead = "RepeatableRead"
+
+	// TxSnapshot 事务级别：Snapshot
+	TxSnapshot = "Snapshot"
+
+	// TxSerializable 事务级别：Serializable
+	TxSerializable = "Serializable"
+
+	// TxLinearizable 事务级别：Linearizable
+	TxLinearizable = "Linearizable"
 )
 
 var (
@@ -66,7 +90,8 @@ func parseExtTags(field reflect.StructField) (ds, tpl string, level sql.Isolatio
 	return
 }
 
-// BoostMapper 对mapper的Field进行wrap处理、绑定
+// BoostMapper 对mapper的Field进行wrap处理、绑定数据源、绑定sql模版、绑定事务级别、绑定是否只读等
+//
 // change: 2023-7-12 修改绑定策略，从延迟绑定修改到boost时绑定，动态打开数据库的需求不高，且模版延迟绑定和获取数据库需要使用到锁，对性能有一定影响
 func BoostMapper(dest interface{}, factory *Factory, ds string) error {
 	currentDb, err := factory.Get(ds)
@@ -79,6 +104,9 @@ func BoostMapper(dest interface{}, factory *Factory, ds string) error {
 	}
 	if v.Elem().Type().Kind() != reflect.Struct {
 		return errors.New("mapper can not apply to a struct pointer")
+	}
+	if ii, ok := dest.(interface{ init() }); ok {
+		ii.init()
 	}
 	v = v.Elem()
 	for idx := 0; idx < v.Type().NumField(); idx++ {
@@ -157,32 +185,32 @@ func BoostMapper(dest interface{}, factory *Factory, ds string) error {
 					fnVal = func(values []reflect.Value) []reflect.Value {
 						ret, err := SelectWith(field.Type.Out(0).Elem(), currentDb, tplList, values[0].Interface().([]any))
 						return []reflect.Value{
-							valueOrZero(ret, field.Type.Out(0)),
-							valueOrZero(err, field.Type.Out(1)),
+							utils.ValueOrZero(ret, field.Type.Out(0)),
+							utils.ValueOrZero(err, field.Type.Out(1)),
 						}
 					}
 				case "NamedSelectFunc":
 					fnVal = func(values []reflect.Value) []reflect.Value {
 						ret, err := NamedSelectWith(field.Type.Out(0).Elem(), currentDb, tplList, values[0].Interface())
 						return []reflect.Value{
-							valueOrZero(ret, field.Type.Out(0)),
-							valueOrZero(err, field.Type.Out(1)),
+							utils.ValueOrZero(ret, field.Type.Out(0)),
+							utils.ValueOrZero(err, field.Type.Out(1)),
 						}
 					}
 				case "GetFunc":
 					fnVal = func(values []reflect.Value) []reflect.Value {
 						ret, err := GetWith(field.Type.Out(0), currentDb, tplList, values[0].Interface().([]any))
 						return []reflect.Value{
-							valueOrZero(ret, field.Type.Out(0)),
-							valueOrZero(err, field.Type.Out(1)),
+							utils.ValueOrZero(ret, field.Type.Out(0)),
+							utils.ValueOrZero(err, field.Type.Out(1)),
 						}
 					}
 				case "NamedGetFunc":
 					fnVal = func(values []reflect.Value) []reflect.Value {
 						ret, err := NamedGetWith(field.Type.Out(0), currentDb, tplList, values[0].Interface())
 						return []reflect.Value{
-							valueOrZero(ret, field.Type.Out(0)),
-							valueOrZero(err, field.Type.Out(1)),
+							utils.ValueOrZero(ret, field.Type.Out(0)),
+							utils.ValueOrZero(err, field.Type.Out(1)),
 						}
 					}
 				}
@@ -195,13 +223,6 @@ func BoostMapper(dest interface{}, factory *Factory, ds string) error {
 	return nil
 }
 
-func valueOrZero(v any, typ reflect.Type) reflect.Value {
-	if v == nil {
-		return reflect.Zero(typ)
-	} else {
-		return reflect.ValueOf(v)
-	}
-}
 func Boost(dest interface{}, ds string) error {
 	return BoostMapper(dest, StdFactory, ds)
 }

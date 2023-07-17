@@ -15,7 +15,11 @@ import (
 var (
 	All  = &RawExpr{Value: "*"}
 	NULL = &ConstantExpr{Value: nil}
-	//start short cut for expr
+
+	LeftBracket  = &RawExpr{Value: "("}
+	RightBracket = &RawExpr{Value: ")"}
+
+	//start shortcut for expr
 
 	//N = Name
 	N = Name
@@ -144,11 +148,18 @@ func (s *AroundExpr) Format(buffer *TracedBuffer) {
 	}
 }
 
+type Tuple struct {
+	Name  Expr
+	Value Expr
+}
+
+// ValueExpr 值表达式
 type ValueExpr struct {
 	Name  string
 	Value any
 }
 
+// Format 格式化, 如果是命名参数, 则使用命名参数，否则使用占位符
 func (n *ValueExpr) Format(buffer *TracedBuffer) {
 	if buffer.NamedVar {
 		buffer.AppendNamedArg(n.Name, n.Value)
@@ -160,6 +171,7 @@ func (n *ValueExpr) Format(buffer *TracedBuffer) {
 	}
 }
 
+// AliasExpr 别名表达式
 type AliasExpr struct {
 	Expr  Expr
 	Alias string
@@ -171,6 +183,7 @@ func (a *AliasExpr) Format(buffer *TracedBuffer) {
 	buffer.AppendString(buffer.SQLNameFunc(a.Alias))
 }
 
+// BinaryExpr 二元表达式
 type BinaryExpr struct {
 	Left     Expr
 	Operator string
@@ -186,6 +199,7 @@ func (b *BinaryExpr) Format(buffer *TracedBuffer) {
 	b.Right.Format(buffer)
 }
 
+// UnaryExpr 一元表达式
 type UnaryExpr struct {
 	Operator string
 	Expr     Expr
@@ -253,23 +267,14 @@ func (b *BetweenExpr) Format(buffer *TracedBuffer) {
 	b.End.Format(buffer)
 }
 
-type ParenExpr struct {
-	Expr Expr
-}
-
-func (p *ParenExpr) Format(buffer *TracedBuffer) {
-	buffer.AppendString("(")
-	p.Expr.Format(buffer)
-	buffer.AppendString(")")
-}
-
+// And 与
 func And(exprList ...Expr) *ListExpr {
 	return &ListExpr{Separator: keywords.And, Placeholder: keywords.Space, ExprList: exprList}
 }
 
 // Paren 括号
-func Paren(expr Expr) *ParenExpr {
-	return &ParenExpr{Expr: expr}
+func Paren(expr Expr) *AroundExpr {
+	return &AroundExpr{Prefix: LeftBracket, Expr: expr, Suffix: RightBracket}
 }
 func Or(exprList ...Expr) *ListExpr {
 	return &ListExpr{Separator: keywords.Or, Placeholder: keywords.Space, ExprList: exprList}
@@ -285,6 +290,8 @@ func Name(name string, qualifiers ...string) *NameExpr {
 func Var(name string, value any) *ValueExpr {
 	return &ValueExpr{Name: name, Value: value}
 }
+
+// Const 常量, 例如：Const(1), Const("a")，和Raw不同的是，Const会自动将值转换为SQL语句中的常量，例如：Const(1)会被格式化为：1，Const("a")会被格式化为：'a'
 func Const(value any) *ConstantExpr {
 	return &ConstantExpr{Value: value}
 }
@@ -327,6 +334,7 @@ func Le(left Expr, right any) *BinaryExpr {
 func Like(left Expr, right any) *BinaryExpr {
 	return Binary(left, keywords.Like, right)
 }
+
 func Raw(value any) *RawExpr {
 	return &RawExpr{Value: value}
 }
@@ -345,8 +353,11 @@ func Alias(expr Expr, alias string) *AliasExpr {
 func InValues(left Expr, values ...Expr) *BinaryExpr {
 	return &BinaryExpr{Left: left, Space: " ", Operator: keywords.In, Right: Paren(List(",", values...))}
 }
+func NotInValues(left Expr, values ...Expr) *BinaryExpr {
+	return &BinaryExpr{Left: left, Space: " ", Operator: keywords.NotIn, Right: Paren(List(",", values...))}
+}
 
-func In(left Expr, name string, values ...any) *BinaryExpr {
+func AutoNamedValues(name string, values ...any) []Expr {
 	var exprs []Expr
 	const nameFmt = "%s_%d"
 	for idx, value := range values {
@@ -359,12 +370,19 @@ func In(left Expr, name string, values ...any) *BinaryExpr {
 			exprs = append(exprs, Var(fmt.Sprintf(nameFmt, name, idx), value))
 		}
 	}
-	return InValues(left, exprs...)
-}
-func NotIn(left Expr, name string, values ...any) *UnaryExpr {
-	return Not(In(left, name, values...))
+	return exprs
 }
 
+func In(left Expr, name string, values ...any) *BinaryExpr {
+	exprs := AutoNamedValues(name, values...)
+	return InValues(left, exprs...)
+}
+func NotIn(left Expr, name string, values ...any) *BinaryExpr {
+	exprs := AutoNamedValues(name, values...)
+	return NotInValues(left, exprs...)
+}
+
+// Not 非, 例如：Not(In(Name("id"), 1,2))
 func Not(expr Expr) *UnaryExpr {
 	return &UnaryExpr{Operator: keywords.Not, Expr: expr}
 }

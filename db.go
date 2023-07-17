@@ -24,7 +24,10 @@ var (
 	ErrNilDB     = errors.New("DB is nil")
 )
 
-// DB database wrapper
+// DB 数据库连接
+// 对sqlx.DB的封装，提供更多的功能：
+// 1. 通过模板文件生成SQL语句并执行，每个连接实例都可以拥有自己的模版系统
+// 2. 通过expr包提供的表达式语法生成SQL语句并执行
 type DB struct {
 	m        *Factory
 	template *template.Template
@@ -333,27 +336,10 @@ func (d *DB) ParseTemplate(name string, tpl string) (*template.Template, error) 
 // ParseSQL parse sql from template
 // 2023-7-12: 由于template的Parse方法会将{{}}中的内容当作变量，所以不再使用template.Parse方法,由BoostMapper中预先解析，减小运行时性能消耗和锁定
 func (d *DB) ParseSQL(sqlOrTpl string, args any) (query string, err error) {
-	//if !strings.HasSuffix(sqlOrTpl, sqlSuffix) {
-	//	if strings.Contains(sqlOrTpl, "{{") && strings.Contains(sqlOrTpl, "}}") {
-	//		name := fmt.Sprintf("%x", md5.Sum([]byte(sqlOrTpl)))
-	//		t := d.template.Lookup(name)
-	//		if t == nil {
-	//			t, err = d.ParseTemplate(name, sqlOrTpl)
-	//		}
-	//		if err != nil {
-	//			return
-	//		}
-	//		sb := &strings.Builder{}
-	//		err = t.Execute(sb, args)
-	//		if err == nil {
-	//			query = sb.String()
-	//		}
-	//
-	//	} else {
-	//		query = sqlOrTpl
-	//	}
-	//
-	//} else {
+
+	if !strings.HasSuffix(sqlOrTpl, sqlSuffix) {
+		return sqlOrTpl, nil
+	}
 	sb := &strings.Builder{}
 	err = d.template.ExecuteTemplate(sb, sqlOrTpl, args)
 	if err == nil {

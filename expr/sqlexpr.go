@@ -3,9 +3,10 @@
  * all right reserved by gnodux<gnodux@gmail.com>
  */
 
-// Package expr package is used to generate sql expression
-// 过于复杂，目前不考虑实现
+// Package expr package 用于生成sql语句
 package expr
+
+//go:generate go run genindx.go
 
 import (
 	"github.com/gnodux/sqlxx/dialect"

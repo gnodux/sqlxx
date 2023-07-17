@@ -11,22 +11,60 @@ import (
 )
 
 type FilterFn func(Expr)
+type SelectFilterFn func(s *SelectExpr)
+type DeleteFilterFn func(s *DeleteExpr)
+type InsertFilterFn func(s *InsertExpr)
+type UpdateFilterFn func(s *UpdateExpr)
 
-func SelectFn(fn func(s *SelectExpr)) FilterFn {
+type Filters []FilterFn
+
+func (f *Filters) Apply(exp Expr) {
+	for _, fn := range *f {
+		fn(exp)
+	}
+}
+func (f *Filters) ApplyAll(exps []Expr) {
+	for _, exp := range exps {
+		f.Apply(exp)
+	}
+}
+func (f *Filters) Append(filters ...FilterFn) *Filters {
+	*f = append(*f, filters...)
+	return f
+}
+func (f *Filters) Select(filters ...FilterFn) *Filters {
+	f.Append(SelectFilter(func(s *SelectExpr) {
+		filters[0](s)
+	}))
+	return f
+}
+func (f *Filters) Delete(filters ...FilterFn) *Filters {
+	f.Append(DeleteFilter(func(s *DeleteExpr) {
+		filters[0](s)
+	}))
+	return f
+}
+func (f *Filters) Update(filters ...FilterFn) {
+	f.Append(UpdateFilter(func(s *UpdateExpr) {
+		filters[0](s)
+	}))
+}
+
+func SelectFilter(fn SelectFilterFn) FilterFn {
 	return func(exp Expr) {
 		if s, ok := exp.(*SelectExpr); ok {
 			fn(s)
 		}
 	}
 }
-func DeleteFn(fn func(s *DeleteExpr)) FilterFn {
+func DeleteFilter(fn DeleteFilterFn) FilterFn {
 	return func(exp Expr) {
 		if s, ok := exp.(*DeleteExpr); ok {
 			fn(s)
 		}
 	}
 }
-func UpdateFn(fn func(s *UpdateExpr)) FilterFn {
+func UpdateFilter(fn UpdateFilterFn) FilterFn {
 	return func(exp Expr) {
 		if s, ok := exp.(*UpdateExpr); ok {
 			fn(s)
@@ -34,28 +72,39 @@ func UpdateFn(fn func(s *UpdateExpr)) FilterFn {
 	}
 }
 
-func Limit(limit int) FilterFn {
+func InsertFilter(fn InsertFilterFn) FilterFn {
 	return func(exp Expr) {
-		if s, ok := exp.(*SelectExpr); ok {
-			s.limit = limit
-		}
-	}
-}
-func Offset(offset int) FilterFn {
-	return func(exp Expr) {
-		if s, ok := exp.(*SelectExpr); ok {
-			s.offset = offset
+		if s, ok := exp.(*InsertExpr); ok {
+			fn(s)
 		}
 	}
 }
 
-func UseCount(exp Expr) {
+func UseLimit(limit int) FilterFn {
+	return SelectFilter(func(s *SelectExpr) {
+		s.limit = limit
+	})
+}
+func UseLimits(limit int, offset int) FilterFn {
+	return SelectFilter(func(s *SelectExpr) {
+		s.limit = limit
+		s.offset = offset
+	})
+}
+func UseOffset(offset int) FilterFn {
+	return SelectFilter(func(s *SelectExpr) {
+		s.offset = offset
+	})
+}
+
+func WithCount(exp Expr) {
 	if s, ok := exp.(*SelectExpr); ok {
 		s.withCount = true
 	}
 }
 
-func UseOr(exp Expr) {
+// AllToOr 将所有的条件转换为or连接
+func AllToOr(exp Expr) {
 	var where Expr
 	switch ex := exp.(type) {
 	case *SelectExpr:
@@ -73,7 +122,8 @@ func UseOr(exp Expr) {
 	}
 }
 
-func UseAnd(exp Expr) {
+// AllToAnd 将所有的条件转换为and连接
+func AllToAnd(exp Expr) {
 	var where Expr
 	switch ex := exp.(type) {
 	case *SelectExpr:
@@ -91,6 +141,7 @@ func UseAnd(exp Expr) {
 	}
 }
 
+// UseCondition 使用条件
 func UseCondition(exp Expr) FilterFn {
 	return func(s Expr) {
 		switch ss := s.(type) {
@@ -138,8 +189,10 @@ func fuzzy(exp Expr) {
 				n.Operator = keywords.Like
 			}
 		}
-	case *ParenExpr:
-		fuzzy(n.Expr)
+	case *AroundExpr:
+		if n.Prefix == LeftBracket && n.Suffix == RightBracket {
+			fuzzy(n.Expr)
+		}
 	}
 }
 func isStringAndFuzzy(v any) bool {
@@ -153,18 +206,18 @@ func isStringAndFuzzy(v any) bool {
 }
 
 func Set(exps ...Expr) FilterFn {
-	return UpdateFn(func(s *UpdateExpr) {
+	return UpdateFilter(func(s *UpdateExpr) {
 		s.Values = exps
 	})
 }
 
 func UseSort(direct string, exprs ...Expr) FilterFn {
-	return SelectFn(func(s *SelectExpr) {
+	return SelectFilter(func(s *SelectExpr) {
 		s.OrderByExpr = Sorts(direct, exprs...)
 	})
 }
 func UseOrderBy(exp Expr) FilterFn {
-	return SelectFn(func(s *SelectExpr) {
+	return SelectFilter(func(s *SelectExpr) {
 		s.OrderByExpr = exp
 	})
 }
