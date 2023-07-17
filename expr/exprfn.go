@@ -114,7 +114,7 @@ func AllToOr(exp Expr) {
 	case *UpdateExpr:
 		where = ex.WhereExpr
 	}
-	if where == nil {
+	if where != nil {
 		if lst, ok := where.(*ListExpr); ok {
 			lst.Placeholder = keywords.Space
 			lst.Separator = keywords.Or
@@ -133,7 +133,7 @@ func AllToAnd(exp Expr) {
 	case *UpdateExpr:
 		where = ex.WhereExpr
 	}
-	if where == nil {
+	if where != nil {
 		if lst, ok := where.(*ListExpr); ok {
 			lst.Placeholder = keywords.Space
 			lst.Separator = keywords.And
