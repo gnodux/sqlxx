@@ -191,6 +191,12 @@ type BinaryExpr struct {
 	Right    Expr
 }
 
+// UseSpace 使用空格
+func (b *BinaryExpr) UseSpace() *BinaryExpr {
+	b.Space = " "
+	return b
+}
+
 func (b *BinaryExpr) Format(buffer *TracedBuffer) {
 	b.Left.Format(buffer)
 	buffer.AppendString(b.Space)
@@ -306,11 +312,17 @@ func Unary(operator string, expr Expr) *UnaryExpr {
 func Binary(left Expr, op string, right any) *BinaryExpr {
 	switch r := right.(type) {
 	case Expr:
-		return &BinaryExpr{Left: left, Operator: op, Right: r}
+		return &BinaryExpr{Left: left, Space: " ", Operator: op, Right: r}
 	case nil:
-		return &BinaryExpr{Left: left, Operator: "IS", Right: NULL}
+		if op == keywords.Equal {
+			return &BinaryExpr{Left: left, Space: " ", Operator: "IS", Right: NULL}
+		} else if op == keywords.NotEqual {
+			return &BinaryExpr{Left: left, Space: " ", Operator: "IS NOT", Right: NULL}
+		} else {
+			return &BinaryExpr{Left: left, Space: " ", Operator: op, Right: NULL}
+		}
 	default:
-		return &BinaryExpr{Left: left, Operator: op, Right: Const(right)}
+		return &BinaryExpr{Left: left, Space: " ", Operator: op, Right: Const(right)}
 	}
 }
 func Eq(left Expr, right any) *BinaryExpr {

@@ -33,46 +33,46 @@ func TestSelect(t *testing.T) {
 			args: args{
 				expr: Select(Name("c1"), Name("c2")).From(Name("table")).Where(Eq(Name("id"), Raw(1))),
 			},
-			want: "SELECT `c1`,`c2` FROM `table` WHERE `id`=1",
+			want: "SELECT `c1`,`c2` FROM `table` WHERE `id` = 1",
 		},
 		{
 			name: "select with where",
 			args: args{expr: Select(All).From(Name("table")).Where(Eq(Name("id"), Raw(1)))},
-			want: "SELECT * FROM `table` WHERE `id`=1",
+			want: "SELECT * FROM `table` WHERE `id` = 1",
 		}, {
 			name: "select with where and group by",
 			args: args{expr: Select(All).From(Name("table")).Where(Eq(Name("id"), Raw(1))).GroupBy(Name("id"))},
-			want: "SELECT * FROM `table` WHERE `id`=1 GROUP BY `id`",
+			want: "SELECT * FROM `table` WHERE `id` = 1 GROUP BY `id`",
 		}, {
 			name: "order by test",
 			args: args{expr: Select(All).From(Name("table")).Where(Eq(Name("id"), Raw(1))).GroupBy(Name("id")).OrderBy(Name("id"))},
-			want: "SELECT * FROM `table` WHERE `id`=1 GROUP BY `id` ORDER BY `id`",
+			want: "SELECT * FROM `table` WHERE `id` = 1 GROUP BY `id` ORDER BY `id`",
 		}, {
 			name: "order by test(multi)",
 			args: args{expr: Select(All).From(Name("table")).Where(Eq(Name("id"), Raw(1))).GroupBy(Name("id")).OrderBy(Name("id"), Name("name"))},
-			want: "SELECT * FROM `table` WHERE `id`=1 GROUP BY `id` ORDER BY `id`,`name`",
+			want: "SELECT * FROM `table` WHERE `id` = 1 GROUP BY `id` ORDER BY `id`,`name`",
 		},
 		{
 			name: "order by test(multi with sort direction)",
 			args: args{expr: Select(All).From(N("table")).Where(Eq(N("id"), R(1))).GroupBy(N("id")).OrderBy(Asc(N("id")), Desc(N("name")))},
-			want: "SELECT * FROM `table` WHERE `id`=1 GROUP BY `id` ORDER BY `id` ASC,`name` DESC",
+			want: "SELECT * FROM `table` WHERE `id` = 1 GROUP BY `id` ORDER BY `id` ASC,`name` DESC",
 		},
 		{
 			name: "order by test(multi but with single sort direction)",
 			args: args{expr: Select(All).From(N("table")).Where(Eq(N("id"), R(1))).GroupBy(N("id")).OrderBy(N("id"), Desc(N("name")))},
-			want: "SELECT * FROM `table` WHERE `id`=1 GROUP BY `id` ORDER BY `id`,`name` DESC",
+			want: "SELECT * FROM `table` WHERE `id` = 1 GROUP BY `id` ORDER BY `id`,`name` DESC",
 		}, {
 			name: "select with multiple where",
 			args: args{
 				expr: Select(All).From(Name("table")).Where(And(Eq(Name("id"), Const(1)), Eq(Name("name"), Const("test")))),
 			},
-			want: "SELECT * FROM `table` WHERE `id`=1 AND `name`='test'",
+			want: "SELECT * FROM `table` WHERE `id` = 1 AND `name` = 'test'",
 		}, {
 			name: "select with multiple where(OR)",
 			args: args{
 				expr: Select(All).From(Name("table")).Where(And(Eq(Name("user_id"), Const(3)), Or(Eq(Name("id"), Const(1)), Eq(Name("name"), Const("test"))))),
 			},
-			want: "SELECT * FROM `table` WHERE `user_id`=3 AND `id`=1 OR `name`='test'",
+			want: "SELECT * FROM `table` WHERE `user_id` = 3 AND `id` = 1 OR `name` = 'test'",
 		},
 	}
 	for _, tt := range tests {

@@ -25,13 +25,13 @@ func TestUpdate(t *testing.T) {
 			args: args{
 				expr: Update(N("table")).Set(N("name").Eq(V("name", "gnodux")), N("age").Eq(V("age", 18))),
 			},
-			want: "UPDATE `table` SET `name`=:name, `age`=:age",
+			want: "UPDATE `table` SET `name` = :name, `age` = :age",
 		}, {
 			name: "update with where",
 			args: args{
 				expr: Update(N("table")).Set(N("name").Eq(V("name", "gnodux")), N("age").Eq(V("age", 18))).Where(N("id").Eq(V("id", 1))),
 			},
-			want: "UPDATE `table` SET `name`=:name, `age`=:age WHERE `id`=:id",
+			want: "UPDATE `table` SET `name` = :name, `age` = :age WHERE `id` = :id",
 		},
 	}
 	for _, tt := range tests {
