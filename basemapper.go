@@ -94,6 +94,7 @@ func (b *BaseMapper[T]) Update(useTenantId bool, entities ...T) error {
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
+
 	return b.UpdateTx(func(tx *Tx) (err error) {
 		return tx.RunCurrentPrepareNamed(map[string]any{
 			"Meta":         b.meta,
@@ -117,6 +118,9 @@ func (b *BaseMapper[T]) Update(useTenantId bool, entities ...T) error {
 //
 // entities 实体列表
 func (b *BaseMapper[T]) PartialUpdate(useTenantId bool, specifiedField []string, entities ...T) error {
+	if hookErr := EvalBeforeHooks(entities...); hookErr != nil {
+		return hookErr
+	}
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
@@ -135,7 +139,7 @@ func (b *BaseMapper[T]) PartialUpdate(useTenantId bool, specifiedField []string,
 			})
 		})
 	}
-	return b.PartialUpdateTx(func(tx *Tx) (err error) {
+	err := b.PartialUpdateTx(func(tx *Tx) (err error) {
 		for _, entity := range entities {
 			if specifiedField == nil {
 				data := ToMap(entity, excludes...)
@@ -157,6 +161,11 @@ func (b *BaseMapper[T]) PartialUpdate(useTenantId bool, specifiedField []string,
 		}
 		return nil
 	})
+
+	if hookErr := EvalAfterHooks(entities...); hookErr != nil {
+		return hookErr
+	}
+	return err
 }
 
 // AutoPartialUpdate 更新指定列.(不会自动添加租户ID作为更新条件)
@@ -327,7 +336,6 @@ func (b *BaseMapper[T]) SelectByExample(entity T, builders ...expr.FilterFn) ([]
 }
 
 func (b *BaseMapper[T]) UpdateBy(builders ...expr.FilterFn) (effect int64, err error) {
-
 	updateExpr := expr.Update(b.meta)
 	for _, fn := range builders {
 		fn(updateExpr)
@@ -341,6 +349,9 @@ func (b *BaseMapper[T]) UpdateBy(builders ...expr.FilterFn) (effect int64, err e
 	return
 }
 func (b *BaseMapper[T]) UpdateByExample(newValue T, example T, builders ...expr.FilterFn) (effect int64, err error) {
+	if err = EvalBeforeHook(newValue); err != nil {
+		return 0, err
+	}
 	valMap := ToMap(example)
 	var whereColumns []expr.Expr
 	for name, val := range valMap {
@@ -361,10 +372,13 @@ func (b *BaseMapper[T]) UpdateByExample(newValue T, example T, builders ...expr.
 	if len(whereColumns) > 0 {
 		builders = append([]expr.FilterFn{expr.UseCondition(expr.And(whereColumns...))}, builders...)
 	}
-	return b.UpdateBy(builders...)
+	effect, err = b.UpdateBy(builders...)
+	if hookErr := EvalAfterHook(newValue); hookErr != nil {
+		err = hookErr
+	}
+	return
 }
 func (b *BaseMapper[T]) DeleteBy(builders ...expr.DeleteExprFn) (rowAffected int64, err error) {
-
 	if len(builders) == 0 {
 		return 0, errors.New("delete by must have one builder")
 	}
