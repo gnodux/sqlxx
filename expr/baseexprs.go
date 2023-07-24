@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"github.com/gnodux/sqlxx/expr/keywords"
 	"github.com/gnodux/sqlxx/utils"
+	"sync/atomic"
 	"time"
 )
 
 var (
-	All  = &RawExpr{Value: "*"}
-	NULL = &ConstantExpr{Value: nil}
-
+	All          = &RawExpr{Value: "*"}
+	NULL         = &ConstantExpr{Value: nil}
 	LeftBracket  = &RawExpr{Value: "("}
 	RightBracket = &RawExpr{Value: ")"}
 
@@ -29,7 +29,17 @@ var (
 	R = Raw
 	F = Fn
 	C = Const
+
+	autoNum int64 = 0
 )
+
+func autoName(p string) string {
+	n := atomic.AddInt64(&autoNum, 1)
+	return fmt.Sprintf("%s_%d", p, n)
+}
+func autoParam() string {
+	return autoName("param")
+}
 
 type RawExpr struct {
 	Value any
@@ -127,6 +137,24 @@ func (n *NameExpr) Le(value any) *BinaryExpr {
 }
 func (n *NameExpr) Like(value any) *BinaryExpr {
 	return Like(n, value)
+}
+
+func (n *NameExpr) In(values ...any) *BinaryExpr {
+	return In(n, n.Name, values...)
+}
+func (n *NameExpr) NotIn(values ...any) *BinaryExpr {
+	return NotIn(n, n.Name, values...)
+}
+func (n *NameExpr) Between(min, max any) *BetweenExpr {
+	minExp, minOk := min.(Expr)
+	maxExp, maxOk := max.(Expr)
+	if !minOk {
+		minExp = Var(autoParam(), min)
+	}
+	if !maxOk {
+		maxExp = Var(autoParam(), max)
+	}
+	return Between(n, minExp, maxExp)
 }
 
 type AroundExpr struct {
