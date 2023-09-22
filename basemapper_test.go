@@ -6,6 +6,8 @@
 package sqlxx
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"github.com/gnodux/sqlxx/expr"
 	"github.com/gnodux/sqlxx/meta"
@@ -16,6 +18,37 @@ import (
 	"testing"
 	"time"
 )
+
+func TestBatchInsert(t *testing.T) {
+	var mapper *BaseMapper[*User]
+	var err error
+
+	mapper, err = NewMapper[BaseMapper[*User]](DefaultName)
+	assert.NoError(t, err)
+	max := 1000
+	users := make([]*User, max)
+	for i := 0; i < max; i++ {
+		users[i] = &User{
+			TenantID: 10011002,
+			Name:     fmt.Sprintf("test user%d", i),
+			Password: fmt.Sprintf("%d", rand.Int63n(99999)),
+			Birthday: time.Now(),
+			Address:  "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+			Role:     "user",
+		}
+	}
+	err = mapper.Insert(users...)
+	err = mapper.Batch(context.Background(), &sql.TxOptions{Isolation: sql.LevelDefault}, func(tx *Tx) error {
+		for _, u := range users {
+			if _, err = tx.NamedExec("delete from user where id=:id", u); err != nil {
+				return err
+			}
+
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+}
 
 func TestBaseMapper_Pointer(t *testing.T) {
 	mapper, err := NewMapper[BaseMapper[*User]](DefaultName)
