@@ -122,7 +122,7 @@ func TestMapper(t *testing.T) {
 			fn: func() (any, error) {
 				var ids []int64
 				err := d1.BatchAddUser(func(tx *Tx) error {
-					return tx.RunPrepareNamedTpl("initialize/insert_user.sql", map[string]any{}, func(stmt *sqlx.NamedStmt) error {
+					return tx.RunPrepareNamedxx("initialize/insert_user.sql", map[string]any{}, func(stmt *sqlx.NamedStmt) error {
 						for _, user := range []*User{
 							{
 								Name:     "batch_user_1",

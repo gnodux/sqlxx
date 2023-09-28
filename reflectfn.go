@@ -25,7 +25,7 @@ func getTpl(d *DB, templateList []string) string {
 func SelectWith(p reflect.Type, db *DB, templateList []string, args []any) (any, error) {
 	list := reflect.New(reflect.SliceOf(p))
 	tpl := getTpl(db, templateList)
-	err := db.SelectTpl(list.Interface(), tpl, args...)
+	err := db.Selectxx(list.Interface(), tpl, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func SelectWith(p reflect.Type, db *DB, templateList []string, args []any) (any,
 func NamedSelectWith(p reflect.Type, db *DB, templateList []string, arg any) (any, error) {
 	list := reflect.New(reflect.SliceOf(p))
 	tpl := getTpl(db, templateList)
-	err := db.NamedSelectTpl(list.Interface(), tpl, arg)
+	err := db.NamedSelectxx(list.Interface(), tpl, arg)
 	return list.Elem().Interface(), err
 }
 
@@ -48,7 +48,7 @@ func NamedGetWith(p reflect.Type, db *DB, templateList []string, arg any) (any, 
 		o = reflect.New(p)
 	}
 	tpl := getTpl(db, templateList)
-	n, err := db.PrepareTplNamed(tpl, arg)
+	n, err := db.PrepareNamedxx(tpl, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func GetWith(p reflect.Type, db *DB, templateList []string, args []any) (any, er
 		o = reflect.New(p)
 	}
 	tpl := getTpl(db, templateList)
-	n, err := db.PrepareTpl(tpl, args)
+	n, err := db.Preparexx(tpl, args)
 	if err != nil {
 		return nil, err
 	}

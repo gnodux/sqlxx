@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 }
 func initData() {
 	err := MustGet(DefaultName).Batch(context.Background(), &sql.TxOptions{ReadOnly: false, Isolation: sql.LevelReadCommitted}, func(tx *Tx) error {
-		if _, err := tx.ExecTpl("initialize/create_tables.sql"); err != nil {
+		if _, err := tx.Execxx("initialize/create_tables.sql"); err != nil {
 			return err
 		}
 		count := 0
@@ -43,20 +43,20 @@ func initData() {
 			return err
 		}
 		if count == 0 {
-			if _, err := tx.NamedExecTpl("initialize/insert_tenant.sql", Tenant{
+			if _, err := tx.NamedExecxx("initialize/insert_tenant.sql", Tenant{
 				Name: "test tenant",
 			}); err != nil {
 				return err
 			}
 		}
 
-		if err := tx.GetTpl(&count, "examples/count_user.sql"); err != nil {
+		if err := tx.Getxx(&count, "examples/count_user.sql"); err != nil {
 			return err
 		}
 		if count == 0 {
 			//add users
 			for i := 0; i < 100; i++ {
-				if _, err := tx.NamedExecTpl("initialize/insert_user.sql", User{
+				if _, err := tx.NamedExecxx("initialize/insert_user.sql", User{
 					Name:     fmt.Sprintf("user_%d", i),
 					TenantID: 1,
 					Password: "password",
@@ -68,21 +68,21 @@ func initData() {
 				}
 			}
 		}
-		if err := tx.GetTpl(&count, "examples/count_role.sql"); err != nil {
+		if err := tx.Getxx(&count, "examples/count_role.sql"); err != nil {
 			return err
 		}
 		if count == 0 {
 			//add roles
-			utils.Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			utils.Must(tx.NamedExecxx("initialize/insert_role.sql", Role{
 				Name: "admin",
 				Desc: "system administrator",
 			}))
 
-			utils.Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			utils.Must(tx.NamedExecxx("initialize/insert_role.sql", Role{
 				Name: "user",
 				Desc: "normal user",
 			}))
-			utils.Must(tx.NamedExecTpl("initialize/insert_role.sql", Role{
+			utils.Must(tx.NamedExecxx("initialize/insert_role.sql", Role{
 				Name: "customer",
 				Desc: "customer",
 			}))
@@ -115,7 +115,7 @@ func TestSelectUserLikeName(t *testing.T) {
 func TestNilDB(t *testing.T) {
 	var d *DB
 	var u []User
-	err := d.SelectTpl(&u, "select_users.sql")
+	err := d.Selectxx(&u, "select_users.sql")
 	fmt.Println(err)
 }
 func TestMustGet(t *testing.T) {

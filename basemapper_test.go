@@ -33,7 +33,7 @@ func TestBatchInsert(t *testing.T) {
 			Name:     fmt.Sprintf("test user%d", i),
 			Password: fmt.Sprintf("%d", rand.Int63n(99999)),
 			Birthday: time.Now(),
-			Address:  "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+			Address:  "Room 404,Build 401, 302 Road,Beijing",
 			Role:     "user",
 		}
 	}
@@ -59,7 +59,7 @@ func TestBaseMapper_Pointer(t *testing.T) {
 		Name:     "test user1",
 		Password: fmt.Sprintf("%d", rand.Int63n(99999)),
 		Birthday: time.Now(),
-		Address:  "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+		Address:  "Room 404,Build 401, 302 Road,Beijing",
 		Role:     "user",
 	}
 	tests := []struct {
@@ -127,7 +127,7 @@ func TestBaseMapper_Struct(t *testing.T) {
 		Name:     "test user1",
 		Password: fmt.Sprintf("%d", rand.Int63n(99999)),
 		Birthday: time.Now(),
-		Address:  "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+		Address:  "Room 404,Build 401, 302 Road,Beijing",
 		Role:     "user",
 	}
 	tests := []struct {
@@ -231,7 +231,7 @@ func TestBaseMapper_Struct(t *testing.T) {
 					Name:     "test user1",
 					Password: fmt.Sprintf("%d", rand.Int63n(99999)),
 					Birthday: time.Now(),
-					Address:  "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+					Address:  "Room 404,Build 401, 302 Road,Beijing",
 					Role:     "user",
 				}
 				if err = mapper.Create(u); err != nil {
@@ -348,7 +348,7 @@ func Test_ToMap(t *testing.T) {
 	m := map[string]interface{}{
 		"Name":    "test",
 		"ID":      int64(9000912),
-		"Address": "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+		"Address": "Room 404,Build 401, 302 Road,Beijing",
 		"Nation":  "China",
 		"Phone":   "123456789",
 	}
@@ -356,7 +356,7 @@ func Test_ToMap(t *testing.T) {
 		User: User{
 			Name:    "test",
 			ID:      9000912,
-			Address: "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+			Address: "Room 404,Build 401, 302 Road,Beijing",
 		},
 		Nation: "China",
 		Phone:  "123456789",
@@ -375,7 +375,7 @@ func TestBaseMapper_Insert(t *testing.T) {
 		TenantID: 100102,
 		Password: fmt.Sprintf("%d", rand.Int63n(99999)),
 		Birthday: time.Now(),
-		Address:  "Room 1103, Building 17,JIANWAI SOHO EAST Area,ChaoYang, BeiJing",
+		Address:  "Room 404,Build 401, 302 Road,Beijing",
 		Role:     "user",
 	}
 

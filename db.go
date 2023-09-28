@@ -40,11 +40,11 @@ func (d *DB) SetManager(m *Factory) {
 	d.m = m
 }
 
-func (d *DB) PrepareTpl(tplName string, args any) (*sqlx.Stmt, error) {
+func (d *DB) Preparexx(sqlOrTpl string, args any) (*sqlx.Stmt, error) {
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.ParseSQL(tplName, args)
+	query, err := d.ParseSQL(sqlOrTpl, args)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (d *DB) PrepareTpl(tplName string, args any) (*sqlx.Stmt, error) {
 func (d *DB) RunPrepared(sqlOrTpl string, arg any, fn func(*sqlx.Stmt) error) (err error) {
 	var stmt *sqlx.Stmt
 	if strings.HasSuffix(sqlOrTpl, ".sql") {
-		if stmt, err = d.PrepareTpl(sqlOrTpl, arg); err != nil {
+		if stmt, err = d.Preparexx(sqlOrTpl, arg); err != nil {
 			return
 		}
 	} else {
@@ -71,7 +71,7 @@ func (d *DB) RunPrepared(sqlOrTpl string, arg any, fn func(*sqlx.Stmt) error) (e
 	return fn(stmt)
 }
 
-func (d *DB) PrepareTplNamed(tplName string, args any) (*sqlx.NamedStmt, error) {
+func (d *DB) PrepareNamedxx(tplName string, args any) (*sqlx.NamedStmt, error) {
 	if d == nil {
 		return nil, ErrNilDB
 	}
@@ -95,7 +95,7 @@ func (d *DB) PrepareTplNamed(tplName string, args any) (*sqlx.NamedStmt, error) 
 func (d *DB) RunPrepareNamed(sqlOrTpl string, arg any, fn func(*sqlx.NamedStmt) error) (err error) {
 	var stmt *sqlx.NamedStmt
 	if strings.HasSuffix(sqlOrTpl, ".sql") {
-		if stmt, err = d.PrepareTplNamed(sqlOrTpl, arg); err != nil {
+		if stmt, err = d.PrepareNamedxx(sqlOrTpl, arg); err != nil {
 			return
 		}
 	} else {
@@ -111,23 +111,23 @@ func (d *DB) RunPrepareNamed(sqlOrTpl string, arg any, fn func(*sqlx.NamedStmt) 
 	}()
 	return fn(stmt)
 }
-func (d *DB) SelectTpl(dest interface{}, tplName string, args ...any) error {
+func (d *DB) Selectxx(dest interface{}, sqlOrTpl string, args ...any) error {
 	if d == nil {
 		return ErrNilDB
 	}
-	query, err := d.ParseSQL(tplName, args)
+	query, err := d.ParseSQL(sqlOrTpl, args)
 	if err != nil {
 		return err
 	}
 	log.Debug("select:", query, args)
 	return d.DB.Select(dest, query, args...)
 }
-func (d *DB) NamedSelectTpl(dest interface{}, tplName string, args interface{}) (err error) {
+func (d *DB) NamedSelectxx(dest interface{}, sqlOrTpl string, args interface{}) (err error) {
 	if d == nil {
 		return ErrNilDB
 	}
 	var named *sqlx.NamedStmt
-	named, err = d.PrepareTplNamed(tplName, args)
+	named, err = d.PrepareNamedxx(sqlOrTpl, args)
 	if err != nil {
 		return err
 	}
@@ -157,11 +157,11 @@ func (d *DB) NamedSelect(dest interface{}, sql string, arg any) (err error) {
 	log.Debug("named select:", named.QueryString, arg)
 	return named.Select(dest, arg)
 }
-func (d *DB) NamedExecTpl(tplName string, arg interface{}) (sql.Result, error) {
+func (d *DB) NamedExecxx(sqlOrTpl string, arg interface{}) (sql.Result, error) {
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.ParseSQL(tplName, arg)
+	query, err := d.ParseSQL(sqlOrTpl, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -169,22 +169,22 @@ func (d *DB) NamedExecTpl(tplName string, arg interface{}) (sql.Result, error) {
 	return d.NamedExec(query, arg)
 }
 
-func (d *DB) ExecTpl(tplName string, args ...interface{}) (sql.Result, error) {
+func (d *DB) Execxx(sqlOrTpl string, args ...interface{}) (sql.Result, error) {
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.ParseSQL(tplName, args)
+	query, err := d.ParseSQL(sqlOrTpl, args)
 	if err != nil {
 		return nil, err
 	}
 	log.Debug("exec:", query, args)
 	return d.Exec(query, args...)
 }
-func (d *DB) NamedQueryTpl(tplName string, arg interface{}) (*sqlx.Rows, error) {
+func (d *DB) NamedQueryxx(sqlOrTpl string, arg interface{}) (*sqlx.Rows, error) {
 	if d == nil {
 		return nil, ErrNilDB
 	}
-	query, err := d.ParseSQL(tplName, arg)
+	query, err := d.ParseSQL(sqlOrTpl, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -192,10 +192,10 @@ func (d *DB) NamedQueryTpl(tplName string, arg interface{}) (*sqlx.Rows, error) 
 	return d.NamedQuery(query, arg)
 }
 func (d *DB) Batch(ctx context.Context, opts *sql.TxOptions, fn func(tx *Tx) error) (err error) {
-	return d.BatchTpl(ctx, opts, "", fn)
+	return d.Batchxx(ctx, opts, "", fn)
 }
 
-func (d *DB) BatchTpl(ctx context.Context, opts *sql.TxOptions, tpl string, fn func(tx *Tx) error) (err error) {
+func (d *DB) Batchxx(ctx context.Context, opts *sql.TxOptions, tpl string, fn func(tx *Tx) error) (err error) {
 	if d == nil {
 		return ErrNilDB
 	}

@@ -54,6 +54,7 @@ func (b *BaseMapper[T]) Column(name string) *Column {
 
 // ListById 通过ID列表查询
 func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err error) {
+	b.init()
 	if len(ids) == 0 {
 		return nil, sql.ErrNoRows
 	}
@@ -91,6 +92,7 @@ func (b *BaseMapper[T]) ListById(tenantId any, ids ...any) (entities []T, err er
 //
 // 如果需要更新部分列,请使用PartialUpdate
 func (b *BaseMapper[T]) Update(useTenantId bool, entities ...T) error {
+	b.init()
 	if len(entities) == 0 {
 		return sql.ErrNoRows
 	}
@@ -118,6 +120,7 @@ func (b *BaseMapper[T]) Update(useTenantId bool, entities ...T) error {
 //
 // entities 实体列表
 func (b *BaseMapper[T]) PartialUpdate(useTenantId bool, specifiedField []string, entities ...T) error {
+	b.init()
 	if hookErr := EvalBeforeHooks(entities...); hookErr != nil {
 		return hookErr
 	}

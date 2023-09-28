@@ -30,7 +30,7 @@ func SelectFnWith[T any](m *Factory, db, tpl string) SelectFunc[T] {
 			return nil, err
 		}
 		var v []T
-		err = d.SelectTpl(&v, tpl, args...)
+		err = d.Selectxx(&v, tpl, args...)
 		return v, err
 	}
 }
@@ -41,7 +41,7 @@ func SelectFn[T any](db, tpl string) SelectFunc[T] {
 
 func TxFnWith(db *DB, tpl string, opts *sql.TxOptions) TxFunc {
 	return func(fn func(tx *Tx) error) error {
-		return db.BatchTpl(context.Background(), opts, tpl, fn)
+		return db.Batchxx(context.Background(), opts, tpl, fn)
 	}
 }
 
@@ -52,7 +52,7 @@ func NamedSelectFnWith[T any](manager *Factory, db, tpl string) NamedSelectFunc[
 		if err != nil {
 			return nil, err
 		}
-		err = d.NamedSelectTpl(&v, tpl, arg)
+		err = d.NamedSelectxx(&v, tpl, arg)
 		return v, err
 	}
 }
@@ -60,25 +60,6 @@ func NamedSelectFnWith[T any](manager *Factory, db, tpl string) NamedSelectFunc[
 func NamedSelectFn[T any](db, tpl string) NamedSelectFunc[T] {
 	return NamedSelectFnWith[T](StdFactory, db, tpl)
 }
-
-//func GetFnWith[T any](m *Factory, db, tpl string) GetFunc[T] {
-//	return func(args ...any) (v T, err error) {
-//		var d *DB
-//		d, err = m.Get(db)
-//		if err != nil {
-//			return
-//		}
-//		n, err := d.PrepareTpl(tpl, args)
-//		if err != nil {
-//			return v, err
-//		}
-//		defer func(n *sqlx.Stmt) {
-//			err = n.Close()
-//		}(n)
-//		err = n.Get(&v, args)
-//		return v, err
-//	}
-//}
 
 //	func GetFn[T any](db, tpl string) GetFunc[T] {
 //		return GetFnWith[T](StdFactory, db, tpl)
@@ -90,7 +71,7 @@ func NamedGetFnWith[T any](m *Factory, db, tpl string) NamedGetFunc[T] {
 			return
 		}
 		var n *sqlx.NamedStmt
-		if n, err = d.PrepareTplNamed(tpl, arg); err != nil {
+		if n, err = d.PrepareNamedxx(tpl, arg); err != nil {
 			return v, err
 		}
 		defer func(n *sqlx.NamedStmt) {
@@ -107,7 +88,7 @@ func NamedGetFnWith[T any](m *Factory, db, tpl string) NamedGetFunc[T] {
 
 func NamedExecFnWith(db *DB, tpl string) NamedExecFunc {
 	return func(arg any) (sql.Result, error) {
-		return db.NamedExecTpl(tpl, arg)
+		return db.NamedExecxx(tpl, arg)
 	}
 }
 
@@ -117,7 +98,7 @@ func NamedExecFnWith(db *DB, tpl string) NamedExecFunc {
 
 func ExecFnWith(db *DB, tpl string) ExecFunc {
 	return func(args ...any) (sql.Result, error) {
-		return db.ExecTpl(tpl, args...)
+		return db.Execxx(tpl, args...)
 	}
 }
 
