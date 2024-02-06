@@ -94,7 +94,7 @@ func initData() {
 	}
 }
 func TestSelectUsers(t *testing.T) {
-	fn := SelectFn[User](DefaultName, "examples/select_users.sql")
+	fn := NewSelectFunc[User](DefaultName, "examples/select_users.sql")
 	users, err := fn()
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +102,7 @@ func TestSelectUsers(t *testing.T) {
 	fmt.Println(users)
 }
 func TestSelectUserLikeName(t *testing.T) {
-	fn := NamedSelectFn[User](DefaultName, "examples/select_user_where.sql")
+	fn := NewNamedSelectFunc[User](DefaultName, "examples/select_user_where.sql")
 	users, err := fn(User{
 		Name: "user_6",
 	})

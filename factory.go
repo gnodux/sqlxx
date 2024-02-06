@@ -159,7 +159,7 @@ func (m *Factory) Open(name, driverName, dsn string) (*DB, error) {
 	return db, nil
 }
 
-// Set set a database
+// Set a database
 func (m *Factory) Set(name string, db *DB) {
 	m.lock.Lock()
 	defer m.lock.Unlock()

@@ -163,11 +163,11 @@ func BoostMapper(dest interface{}, factory *Factory, ds string) error {
 			}
 			switch field.Type {
 			case ExecFuncType:
-				v.Field(idx).Set(reflect.ValueOf(ExecFnWith(currentDb, sqlTpl)))
+				v.Field(idx).Set(reflect.ValueOf(NewExecFuncWith(currentDb, sqlTpl)))
 			case NamedExecFuncType:
-				v.Field(idx).Set(reflect.ValueOf(NamedExecFnWith(currentDb, sqlTpl)))
+				v.Field(idx).Set(reflect.ValueOf(NewNamedExecFuncWith(currentDb, sqlTpl)))
 			case TxFuncType:
-				v.Field(idx).Set(reflect.ValueOf(TxFnWith(currentDb, sqlTpl, &sql.TxOptions{
+				v.Field(idx).Set(reflect.ValueOf(NewTxFuncWith(currentDb, sqlTpl, &sql.TxOptions{
 					Isolation: isoLevel,
 					ReadOnly:  readonly,
 				})))
@@ -223,14 +223,24 @@ func BoostMapper(dest interface{}, factory *Factory, ds string) error {
 	return nil
 }
 
+// Boost 对mapper的Field进行wrap处理、绑定数据源、绑定sql模版、绑定事务级别、绑定是否只读等
+// dest: mapper对象
+// ds: 数据源
 func Boost(dest interface{}, ds string) error {
 	return BoostMapper(dest, StdFactory, ds)
 }
+
+// NewMapperWith 创建一个mapper
+// factory: 数据库管理器
+// dataSource: 数据源
 func NewMapperWith[T any](factory *Factory, dataSource string) (*T, error) {
 	var d T
 	err := BoostMapper(&d, factory, dataSource)
 	return &d, err
 }
+
+// NewMapper 创建一个mapper
+// dataSource: 数据源
 func NewMapper[T any](dataSource string) (*T, error) {
 	return NewMapperWith[T](StdFactory, dataSource)
 }

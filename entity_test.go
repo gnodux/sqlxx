@@ -91,5 +91,6 @@ func TestSetId(t *testing.T) {
 	encoder.Encode(users)
 }
 func SetPrimayKey(user *User) {
+	println(user.ID)
 	user.ID = 1
 }

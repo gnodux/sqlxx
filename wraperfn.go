@@ -15,15 +15,32 @@ const (
 	sqlSuffix = ".sql"
 )
 
+// SelectFunc Select 函数类型，使用位置参数
 type SelectFunc[T any] func(args ...any) ([]T, error)
+
+// NamedSelectFunc NamedSelect 函数类型, 用于查询多条记录,使用命名参数
 type NamedSelectFunc[T any] func(arg any) ([]T, error)
+
+// GetFunc Get 函数类型, 用于查询单条记录
 type GetFunc[T any] func(args ...any) (T, error)
+
+// NamedGetFunc NamedGet 函数类型, 用于查询单条记录,使用命名参数
 type NamedGetFunc[T any] func(arg any) (T, error)
+
+// ExecFunc Exec 函数类型, 用于执行无返回值的SQL
 type ExecFunc func(args ...any) (sql.Result, error)
+
+// NamedExecFunc NamedExec 函数类型, 用于执行无返回值的SQL,使用命名参数
 type NamedExecFunc func(arg any) (sql.Result, error)
+
+// TxFunc Tx 函数类型, 用于执行事务
 type TxFunc func(func(*Tx) error) error
 
-func SelectFnWith[T any](m *Factory, db, tpl string) SelectFunc[T] {
+// NewSelectFuncWith 创建一个 SelectFunc
+// m: Factory 数据库管理器
+// db: 数据库名称
+// tpl: SQL模版或者inline SQL
+func NewSelectFuncWith[T any](m *Factory, db, tpl string) SelectFunc[T] {
 	return func(args ...any) ([]T, error) {
 		d, err := m.Get(db)
 		if err != nil {
@@ -35,17 +52,27 @@ func SelectFnWith[T any](m *Factory, db, tpl string) SelectFunc[T] {
 	}
 }
 
-func SelectFn[T any](db, tpl string) SelectFunc[T] {
-	return SelectFnWith[T](StdFactory, db, tpl)
+// NewSelectFunc 创建一个 SelectFunc
+// db: 数据库名称（使用默认的数据库管理器 StdFactory）
+// tpl: SQL模版或者inline SQL
+func NewSelectFunc[T any](db, tpl string) SelectFunc[T] {
+	return NewSelectFuncWith[T](StdFactory, db, tpl)
 }
 
-func TxFnWith(db *DB, tpl string, opts *sql.TxOptions) TxFunc {
+// NewTxFuncWith 创建一个 TxFunc
+// db: 数据库名称
+// tpl: SQL模版或者inline SQL
+func NewTxFuncWith(db *DB, tpl string, opts *sql.TxOptions) TxFunc {
 	return func(fn func(tx *Tx) error) error {
 		return db.Batchxx(context.Background(), opts, tpl, fn)
 	}
 }
 
-func NamedSelectFnWith[T any](manager *Factory, db, tpl string) NamedSelectFunc[T] {
+// NewNamedSelectFuncWith 创建一个 NamedSelectFunc
+// manager: Factory 数据库管理器
+// db: 数据库名称
+// tpl: SQL模版或者inline SQL
+func NewNamedSelectFuncWith[T any](manager *Factory, db, tpl string) NamedSelectFunc[T] {
 	return func(arg any) ([]T, error) {
 		var v []T
 		d, err := manager.Get(db)
@@ -57,14 +84,22 @@ func NamedSelectFnWith[T any](manager *Factory, db, tpl string) NamedSelectFunc[
 	}
 }
 
-func NamedSelectFn[T any](db, tpl string) NamedSelectFunc[T] {
-	return NamedSelectFnWith[T](StdFactory, db, tpl)
+// NewNamedSelectFunc 创建一个 NamedSelectFunc
+// db: 数据库名称
+// tpl: SQL模版或者inline SQL
+func NewNamedSelectFunc[T any](db, tpl string) NamedSelectFunc[T] {
+	return NewNamedSelectFuncWith[T](StdFactory, db, tpl)
 }
 
 //	func GetFn[T any](db, tpl string) GetFunc[T] {
 //		return GetFnWith[T](StdFactory, db, tpl)
 //	}
-func NamedGetFnWith[T any](m *Factory, db, tpl string) NamedGetFunc[T] {
+
+// NewNamedGetFuncWith 创建一个 NamedGetFunc
+// m: Factory 数据库管理器
+// db: 数据库名称
+// tpl: SQL模版或者inline SQL
+func NewNamedGetFuncWith[T any](m *Factory, db, tpl string) NamedGetFunc[T] {
 	return func(arg any) (v T, err error) {
 		var d *DB
 		if d, err = m.Get(db); err != nil {
@@ -82,26 +117,20 @@ func NamedGetFnWith[T any](m *Factory, db, tpl string) NamedGetFunc[T] {
 	}
 }
 
-//func NamedGetFn[T any](db, tpl string) NamedGetFunc[T] {
-//	return NamedGetFnWith[T](StdFactory, db, tpl)
-//}
-
-func NamedExecFnWith(db *DB, tpl string) NamedExecFunc {
+// NewNamedExecFuncWith 创建一个 NamedExecFunc
+// db:*DB 数据库管理器
+// tpl: SQL模版或者inline SQL
+func NewNamedExecFuncWith(db *DB, tpl string) NamedExecFunc {
 	return func(arg any) (sql.Result, error) {
 		return db.NamedExecxx(tpl, arg)
 	}
 }
 
-//func NamedExecFn(db, tpl string) NamedExecFunc {
-//	return NamedExecFnWith(StdFactory, db, tpl)
-//}
-
-func ExecFnWith(db *DB, tpl string) ExecFunc {
+// NewExecFuncWith 创建一个 ExecFunc
+// db:*DB 数据库
+// tpl: SQL模版或者inline SQL
+func NewExecFuncWith(db *DB, tpl string) ExecFunc {
 	return func(args ...any) (sql.Result, error) {
 		return db.Execxx(tpl, args...)
 	}
 }
-
-//func ExecFn(db, tpl string) ExecFunc {
-//	return ExecFnWith(StdFactory, db, tpl)
-//}
