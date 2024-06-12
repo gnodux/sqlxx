@@ -10,7 +10,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/cookieY/sqlx"
-	"github.com/gnodux/sqlxx/builtinsql"
+	"github.com/gnodux/sqlxx/builtin"
 	"github.com/gnodux/sqlxx/dialect"
 	"github.com/gnodux/sqlxx/expr"
 	"io/fs"
@@ -295,6 +295,7 @@ func (d *DB) NamedGet(dest interface{}, query string, arg interface{}) error {
 	return stmt.Get(dest, arg)
 }
 
+// SetTemplate set template
 func (d *DB) SetTemplate(tpl *template.Template) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -326,6 +327,8 @@ func (d *DB) ParseTemplateFS(f fs.FS, patterns ...string) error {
 	}
 	return nil
 }
+
+// ParseTemplate parse template from string
 func (d *DB) ParseTemplate(name string, tpl string) (*template.Template, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -350,11 +353,13 @@ func (d *DB) ParseSQL(sqlOrTpl string, args any) (query string, err error) {
 	return
 }
 
+// Open database with default factory(StdFactory)
 func Open(driverName, datasource string) (*DB, error) {
 	d, _ := Drivers[driverName]
 	return OpenWith(StdFactory, d, datasource)
 }
 
+// OpenWith open database with factory
 func OpenWith(f *Factory, driver *dialect.Driver, datasource string) (*DB, error) {
 	if driver == nil {
 		driver = f.driver
@@ -369,7 +374,7 @@ func OpenWith(f *Factory, driver *dialect.Driver, datasource string) (*DB, error
 	db.MapperFunc(NameFunc)
 
 	newDb := &DB{DB: db, m: f, driver: driver, template: template.New("sql").Funcs(MakeFuncMap(driver))}
-	err = newDb.ParseTemplateFS(builtinsql.Builtin, "**/*.sql")
+	err = newDb.ParseTemplateFS(builtin.Builtin, "builtin/*.sql")
 	if err != nil {
 		return nil, err
 	}

@@ -1,17 +1,22 @@
-# sqlx template & database factory extension
+# a extension sql library. enhance sql template/sql expression
 
 ## Features
 
-- sql template
-- database factory
+- database factory: multiple database management support
+- sql template: sql template support
+- sql expression: sql expression support
+- base mapper: basic sql mission support
 
-## 更新版本
-```shell
-GOPROXY=https://goproxy.cn go list -m github.com/gnodux/sqlxx
+## Installation
+
+```bash
+go get github.com/gnodux/sqlxx
 ```
 
-```shell
-GOPROXY=https://proxy.golang.org go list -m github.com/gnodux/sqlxx
-```
-## usage
+## factory: management your database connections
 
+## sql template
+
+## sql expression
+
+## base mapper

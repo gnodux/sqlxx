@@ -3,7 +3,7 @@
  * all right reserved by gnodux<gnodux@gmail.com>
  */
 
-package builtinsql
+package builtin
 
 import (
 	"embed"
